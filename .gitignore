@@ -39,3 +39,31 @@
 
 # debug information files
 *.dwo
+
+# Yocto build artifacts 
+src/os/yocto/build-rpi/tmp/
+src/os/yocto/build-rpi/cache/
+src/os/yocto/build-rpi/downloads/
+src/os/yocto/build-rpi/sstate-cache/
+src/os/yocto/build-rpi/buildhistory/
+src/os/yocto/build-rpi/pseudo/
+
+# Yocto internals 
+*.pyc
+__pycache__/
+*.lock
+
+# CMake 
+CMakeCache.txt
+CMakeFiles/
+cmake-build-*/
+Makefile
+install_manifest.txt
+
+# SDK generado 
+src/os/yocto/sdk/
+
+src/os/yocto/build-rpi/bitbake-cookerdaemon.log
+src/os/yocto/build-rpi/conf/conf-notes.txt
+src/os/yocto/build-rpi/conf/conf-summary.txt
+src/os/yocto/build-rpi/conf/templateconf.cfg
