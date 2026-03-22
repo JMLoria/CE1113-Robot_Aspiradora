@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="es">    
+<head>
+    <meta charset="UFT-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CE1113 - Robot Aspiradora G6 - Panel de Control</title>
+    <link rel="stylesheet" href="style.css"> <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #1a1a1a; color: #e0e0e0; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        .container { display: flex; gap: 30px; flex-wrap: wrap; justify-content: center; }
+        #mapCanvas { background: #000; border: 3px solid #333; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .panel { background: #2a2a2a; padding: 20px; border-radius: 10px; width: 300px; }
+        .controls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 20px; }
+        button { padding: 15px; border: none; border-radius: 5px; background: #3d3d3d; color: white; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        button:hover { background: #555; }
+        button.active { background: #2ecc71; }
+        .status-dot { height: 10px; width: 10px; border: radius 50%; display: inline-block; margin-right: 5px; }
+        .online { background-color: #2ecc71; }
+        .offline { background-color: #e74c3c; }
+    </style>
+</head>
+<body>
+    <h1>Panel de Control</h1>
+    <div id="status"><span class="status-dot offline"></span>Desconectado</div>
+
+    <div class="container">
+        <div>
+            <h3>Mapa de Navegacion 2D</h3>
+            <canvas id="mapCanvas" width="400" height="400"></canvas>
+        </div>
+
+        <div class="panel">
+            <h3>Sincronizacion</h3>
+            <div style="margin-bottom: 20px;">
+                <button onclick="pedirActualizacion()" style="background: #2980b9; width: 100%;">Actualizar Mapa</button>
+            </div>
+            <h3>Modos de Operacion</h3>
+            <div style="display: flex; gap: 5px; margin-bottom:20px;">
+                <button onclick="setMode('auto')" id="btn-auto">Autonomo</button>
+                <button onclick="setMode('manual')" id="btn-manual" class="active">Manual</button>
+            </div>
+
+            <h3>Control Remoto</h3>
+            <div class="controls">
+                <div></div><button onclick="move('forward')">w</button><div></div>
+                <button onclick="move('left')">a</button>
+                <button onclick="move('stop')" style="background: #c0392b;">esc</button>
+                <button onclick="move('right')">d</button>
+                <div></div><button onclick="move('backward')">s</button><div></div>
+            </div>
+
+            <h3 style="margin-top: 20px;">Reproductor MP3</h3>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button onclick="playMusic('track1')">Reprooducir musica</button>
+                <button onclick="stopMusic()">Detener todo</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
