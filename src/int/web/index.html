@@ -49,10 +49,39 @@
             </div>
 
             <h3 style="margin-top: 20px;">Reproductor MP3</h3>
-            <div style="display: flex; flex-direction: column; gap: 10px;">
-                <button onclick="playMusic('track1')">Reprooducir musica</button>
-                <button onclick="stopMusic()">Detener todo</button>
+            <div class="panel-audio" style="background: #1e1e1e; padding: 15px; border-radius: 8px; border: 1px solid #333;">
+                <div id ="track-info" style="font-size: 0.85em; color: #00f2ff; margin-bottom: 10px; text-align: center;">
+                    Esperando reproducción...
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                    <span id="time-current" style="font-size: 0.75em; width: 35px;">0:00</span>
+                    <div style="flex-grow: 1; background: #333; height: 6px; border-radius: 3px; overflow: hidden;">
+                        <div id="progress-bar" style="width: 0%; height: 100%; background: #00f2ff; transition: width 0.5s linear;"></div>
+                    </div>
+                    <span id="time-total" style="font-size: 0.75em; width:35px">0:00</span>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px">
+                    <button onclick="prevSong()" title="Anterior">⏮</button>
+                    <button onclick="togglePlay()" id="btn-play-pause" style="background: #2980b9" title="Play/Pause">▶</button>
+                    <button onclick="nextSong()" title="Siguiente">⏭</button>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 10px;">
+                    <button onclick="skipTime('back')" style="font-size: 0.8em;">◄◄</button>
+                    <button onclick="skipTime('forward')" style="font-size: 0.8em;">►►</button>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+                    <button onclick="changeVolume('down')" style="flex: 1;">🔉</button>
+                    <button onclick="changeVolume('up')" style="flex: 1;">🔊</button>
+                </div>
+
+                <button onclick="stopMusic()" style="background: #c0392b; width: 100%; margin-top: 10px;">⏹</button>
+
             </div>
+
         </div>
     </div>
 

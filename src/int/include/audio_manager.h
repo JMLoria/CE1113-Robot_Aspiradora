@@ -2,7 +2,9 @@
 #define AUDIO_MANAGER_H
 
 #include <string>
+#include <vector>
 #include <thread>
+#include <mutex>
 #include <atomic>
 
 class AudioManager {
@@ -10,22 +12,47 @@ public:
     AudioManager();
     ~AudioManager();
 
-    // Controles requeridos
-    void play(const std::string& fileName);
+    // Controles de flujo
+    void play(int index = -1);
     void pause();
     void stop();
-    void setVolume(int volume);
+    void nextSong();
+    void prevSong();
 
-    // Reproduccion de notificaciones cortas
-    void playNotification(const std::string& eventType);
+    // Controles de tiempo
+    void forward5s();
+    void back5s();
+
+    // Controles de audio
+    void upVolume();
+    void downVolume();
+    void notifications(const std::string& alert_name);
+
+    // Funciones de datos
+    int getCurrentTime();
+    int getTotalTime();
+    std::string getCurrentTrackName();
 
 private:
-    std::atomic<bool> isPlaying;
-    std::atomic<int> currentVolume;
-    std::thread audioThread;
+    std::string data_path = "../../../data/";
+    std::vector<std::string> playlist;
+    int current_track_index = 0;
+    std::atomic<int> volume{50};
 
-    // Funcion interna que correra en el hilo separado
-    void audioWorker(std::string path);
+    std::atomic<int> current_seconds{0};
+    std::atomic<int> total_seconds{0};
+
+    std::atomic<bool> is_playing_active{false};
+    bool is_paused = false;
+
+    std::thread audio_thread;
+    std::mutex fifo_mutex;
+    std::atomic<bool> running{true};
+
+
+    void sendCommand(const std::string& cmd);
+    void loadPlaylist();
+    void initProcess(); // Funcion que correra en el hilo
 };
 
 #endif // AUDIO_MANAGER_H

@@ -3,35 +3,37 @@
 #include "../include/mapping.h"
 #include "../include/biblioteca_robot.h"
 #include <iostream>
+#include <fstream>
+#include <sstream>
 
 
 int main() {
     crow::SimpleApp app;
     AudioManager audio; 
     MappingManager mapper(20, 20);
+
+    // Alerta de encendido al iniciar el servidor
+    audio.notifications("sys_on");
     
-    // --- Ruta para Achivos Estaticos ---
+    // --- ARCHIVOS ESTATICOS ---
     // Sirve el index.html automaticamente al entrar a http://localhost:8080
     CROW_ROUTE(app, "/")
     ([](const crow::request& req, crow::response& res) {
         std::string path = "/home/jose/Documents/TEC/2026/I_Semestre/CE1113-Empotrados/CE1113-Robot_Aspiradora/src/int/web/index.html";
-    
         std::ifstream f(path);
         if (f.is_open()) {
             std::stringstream buffer;
             buffer << f.rdbuf();
-            res.set_header("Content-Type", "text/html");
+            res.set_header("Content-Type", "text/html; charset=UTF-8");
             res.write(buffer.str());
-            std::cout << "[SUCCESS] Archivo index.html leido correctamente." << std::endl;
+            std::cout << "[SUCCESS] index.html enviado correctamente." << std::endl;
         } else {
             res.code = 404;
-            res.write("Error critico: El servidor no puede abrir el archivo en la ruta especificada.");
-            std::cout << "[ERROR] No se pudo abrir el archivo en: " << path << std::endl;
+            res.write("Error critico: No se encontro index.html");
         }
         res.end();
     });
 
-    // Ruta para el JavaScript (Lectura manual)
     CROW_ROUTE(app, "/app.js")
     ([](const crow::request& req, crow::response& res) {
         std::string path = "/home/jose/Documents/TEC/2026/I_Semestre/CE1113-Empotrados/CE1113-Robot_Aspiradora/src/int/web/app.js";
@@ -41,27 +43,11 @@ int main() {
             buffer << f.rdbuf();
             res.set_header("Content-Type", "application/javascript");
             res.write(buffer.str());
-            std::cout << "[SUCCESS] app.js enviado." << std::endl;
+            std::cout << "[SUCCESS] app.js enviado correctamente." << std::endl;
         } else {
             res.code = 404;
-            std::cout << "[ERROR] No se encontro app.js en la ruta absoluta." << std::endl;
         }
         res.end();
-    });
-
-    // --- Endpoints de prueba ---
-    CROW_ROUTE(app, "/api/move/<string>")
-    ([&](std::string dir) {
-        std::cout << "[CONTROL] Comando recibido: " << dir << std::endl;
-        // set_motors(50, 50); // Aqui llamamos a la .so
-        return crow::response(200, "OK");
-    });
-
-    CROW_ROUTE(app, "/api/audio/play/<string>")
-    ([&](std::string track) {
-        std::cout << "[AUDIO] Reproduciendo track: " << track << std::endl;
-        audio.play(track + ".mp3");
-        return crow::response(200, "OK");
     });
 
     CROW_ROUTE(app, "/api/mode/<string>")
@@ -70,28 +56,100 @@ int main() {
         return crow::response(200, "Modo actualizado");
     });
 
-    // --- Websocket para el mapa ---
+    // --- ENDPONTS MUSICA ---
+    CROW_ROUTE(app, "/api/audio/play/current")
+    ([&]() {
+        audio.play();
+        return crow::response(200, "Reproduciondo cancion");
+    });
+
+    CROW_ROUTE(app, "/api/audio/play/<int>")
+    ([&](int track_id) {
+        audio.play(track_id);
+        return crow::response(200, "Reproduciondo cancion");
+    });
+
+    CROW_ROUTE(app, "/api/audio/pause")
+    ([&]() {
+        audio.pause();
+        return crow::response(200, "Pausa/Reanudar");
+    });
+
+    CROW_ROUTE(app, "/api/audio/stop")
+    ([&]() {
+        audio.stop();
+        return crow::response(200, "Reproduccion detenida");
+    });
+
+    CROW_ROUTE(app, "/api/audio/next")
+    ([&]() {
+        audio.nextSong();
+        return crow::response(200, "Siguiente");
+    });
+
+    CROW_ROUTE(app, "/api/audio/prev")
+    ([&]() {
+        audio.prevSong();
+        return crow::response(200, "Anterior");
+    });
+
+    // --- ENDPOINTS CONTROL AUDIO ---
+    CROW_ROUTE(app, "/api/audio/forward")
+    ([&]() {
+        audio.forward5s();
+        return crow::response(200, "+5s");
+    });
+
+    CROW_ROUTE(app, "/api/audio/back")
+    ([&]() {
+        audio.back5s();
+        return crow::response(200, "-5s");
+    });
+
+    CROW_ROUTE(app, "/api/audio/volume/up")
+    ([&]() {
+        audio.upVolume();
+        return crow::response(200, "Volumen +");
+    });
+
+    CROW_ROUTE(app, "/api/audio/volume/down")
+    ([&]() {
+        audio.downVolume();
+        return crow::response(200, "Volumen -");
+    });
+
+    // --- ENDPOINTS NOTIFICACIONES (SISTEMA) ---
+    CROW_ROUTE(app, "/api/audio/notify/<string>")
+    ([&](std::string alert_name) {
+        audio.notifications(alert_name);
+        return crow::response(200, "Notificacion enviada");
+    });
+
+    // --- WEBSOCKET ---
     CROW_ROUTE(app, "/ws")
-        .websocket()
-        .onopen([&](crow::websocket::connection& conn) {
-            std::cout << "[WS] Cliente conectado. Iniciando flujo de datos del mapa..." << std::endl;
+    .websocket()
+    .onopen([&](crow::websocket::connection& conn) {
+        std::cout << "[WS] Cliente conectado. Sincronizando..." << std::endl;
+    })
+    .onmessage([&](crow::websocket::connection& conn, const std::string& data, bool is_binary) {
+        if (data == "update") {
+            // Creamos un objeto JSON de respuesta
+            crow::json::wvalue response;
             
-            // Simulación: Cada vez que se conecta un cliente, le enviamos un mapa inicial
-            // En una implementación real, usarías un timer para enviar esto constantemente
-            conn.send_text(mapper.getMapAsJson());
-        })
-        .onmessage([&](crow::websocket::connection& conn, const std::string& data, bool is_binary) {
-            // Si el cliente pide una actualización manual enviando "update"
-            if (data == "update") {
-                // Simulamos que el robot se movió un poco antes de enviar
-                static int move_x = 10;
-                mapper.updateRobotPosition(move_x++, 10);
-                
-                // Enviamos el mapa actualizado
-                conn.send_text(mapper.getMapAsJson());
-                std::cout << "[WS] Mapa actualizado enviado a petición del cliente" << std::endl;
-            }
-        });
+            // 1. Datos del Mapa (Parseamos el JSON que genera el mapper)
+            auto map_data = crow::json::load(mapper.getMapAsJson());
+            response["map"]["grid"] = map_data["grid"];
+            response["map"]["robot"] = map_data["robot"];
+
+            // 2. Datos de Audio Real (Extraídos del hilo de mpg123)
+            response["audio"]["track"] = audio.getCurrentTrackName();
+            response["audio"]["current"] = audio.getCurrentTime();
+            response["audio"]["total"] = audio.getTotalTime();
+            
+            // Enviamos todo el paquete al navegador
+            conn.send_text(response.dump());
+        }
+    });
 
     std::cout << "\n==========================================" << std::endl;
     std::cout << "SERVIDOR INICADO" << std::endl;
