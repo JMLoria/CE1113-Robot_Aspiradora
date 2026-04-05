@@ -6,6 +6,7 @@
 #include <fstream>
 #include <sstream>
 #include <cmath>
+#include <random>
 
 
 int main() {
@@ -93,7 +94,13 @@ int main() {
                 audio.notifications("obstacle");
             }
         } else if (dir == "stop") {
-            std::cout << "[MOTOR] Detenido" << std::endl;
+            mapper.resetMap();
+
+            cur_x = 10;
+            cur_y = 10;
+            robot_angle = 0;
+
+            std::cout << "[SISTEMA] Stop: Motores detenidos y mapa limpio" << std::endl;
         }
         return crow::response(200, "OK");
     });
@@ -172,17 +179,22 @@ int main() {
     ([&]() {
         std::cout << "[TEST] Generando obstáculos de prueba..." << std::endl;
         
-        // Dibujamos una pequeña "pared" o borde para probar
-        for(int i = 5; i < 15; i++) {
-            mapper.addObstacle(i, 5);  // Línea horizontal
-            mapper.addObstacle(5, i);  // Línea vertical
-        }
-        
-        // Un obstáculo aleatorio cerca del robot
-        mapper.addObstacle(12, 12);
-        mapper.addObstacle(8, 8);
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_int_distribution<> disX(0, 19);
+        std::uniform_int_distribution<> disY(0, 19);
 
-        return crow::response(200, "Obstaculos generados. Revisa la interfaz web.");
+        // Genera N obstaculos al azar
+        for (int i = 0; i < 35; i++) {
+            int obsX = disX(gen);
+            int obsY = disY(gen);
+
+            if (obsX != cur_x || obsY != cur_y) {
+                mapper.addObstacle(obsX, obsY);
+            }
+        }
+
+        return crow::response(200, "Obstaculos generados.");
     });
 
     // --- WEBSOCKET ---

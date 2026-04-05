@@ -19,3 +19,9 @@ make
 ```bash
 ./robot_int_serv
 ```
+
+## 4. Pruebas
+Para ejecutar las pruebas de obstaculos en la interfaz web, se debe ejecutar el siguiente comando en la consola.log
+```bash
+fetch('/api/test/obstacles')
+```

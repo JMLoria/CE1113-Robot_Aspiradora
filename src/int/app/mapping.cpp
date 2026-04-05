@@ -1,10 +1,17 @@
 #include "../include/mapping.h"
 #include <sstream>
+#include <iostream>
 
-MappingManager::MappingManager(int w, int h) : width(w), height(h) {
+MappingManager::MappingManager(int w, int h, int startX, int startY) : width(w), height(h) {
     grid.resize(height, std::vector<int>(width, UNKNOWN));
-    robotX = width / 2;
-    robotY = height / 2;
+
+    // Si la posicion inicial no se especifica, va al centro. Sis e especifica, usa ese valor
+    robotX = (startX == -1) ? width / 2 : startX;
+    robotY = (startY == -1) ? height / 2 : startY;
+    
+    if (robotX >= 0 && robotX < width && robotY >= 0 && robotY < height) {
+        grid[robotY][robotY] = FREE;
+    }
 }
 
 void MappingManager::updateRobotPosition(int x, int y) {
@@ -12,7 +19,7 @@ void MappingManager::updateRobotPosition(int x, int y) {
     if (x >= 0 && x < width && y >= 0 && y < height) {
         robotX = x;
         robotY = y;
-        grid[y][x] = FREE;
+        grid[robotY][robotX] = FREE;
     }
 }
 
@@ -47,6 +54,21 @@ bool MappingManager::isTraversable(int x, int y) {
 }
 
 
-void MappingManager::resetMap() {
+void MappingManager::resetMap(int startX, int startY) {
+    std::lock_guard<std::mutex> lock(mapMutex);
 
+    // Llenar la matriz con UNKNOWN
+    for (auto& row : grid) {
+        std::fill(row.begin(), row.end(), UNKNOWN);
+    }
+
+    // Reposicionar al robot
+    robotX = (startX == -1) ? width / 2 : startX;
+    robotY = (startY == -1) ? height / 2 : startY;
+
+    if (robotX >= 0 && robotX < width && robotY >= 0 && robotY < height) {
+        grid[robotY][robotY] = FREE;
+    }
+
+    std::cout << "[MAPA] Matriz reiniciada." << std::endl;
 }

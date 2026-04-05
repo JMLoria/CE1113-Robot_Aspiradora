@@ -9,7 +9,7 @@ enum CellState { UNKNOWN = 0, FREE = 1, OBSTACLE = 2};
 
 class MappingManager {
 public:
-    MappingManager(int width, int height);
+    MappingManager(int width, int height, int startX = -1, int startY = -1);
 
     // Actualiza la posicion del robot y marca como "FREE"
     void updateRobotPosition(int x, int y);
@@ -23,7 +23,7 @@ public:
     // Verifica si una coordenada es transitable.
     bool isTraversable(int x, int y);
 
-    void resetMap();
+    void resetMap(int startX = -1, int startY = -1);
 
 private:
     int width, height;
