@@ -88,13 +88,18 @@ void AudioManager::play(int index) {
 
     std::string full_path = data_path + "musics/" + playlist[current_track_index] + ".mp3";
     sendCommand("LOAD " + full_path);
-    std::cout << "[AUDIO] Reproduciendo: " << playlist[current_track_index] << full_path << std::endl;
+    std::cout << "[AUDIO] Reproduciendo: " << playlist[current_track_index] << std::endl;
 }
 
 void AudioManager::pause() {
     sendCommand("PAUSE");
     is_paused =! is_paused;
-    std::cout << "[AUDIO] Pausa/Reanudar" << std::endl;
+    if (is_paused) {
+        std::cout << "[AUDIO] Pausa" << std::endl;
+        return;
+    }
+
+    std::cout << "[AUDIO] Reproduciendo: " << playlist[current_track_index] << std::endl;
 }
 
 void AudioManager::stop() {

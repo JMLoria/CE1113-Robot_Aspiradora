@@ -25,8 +25,9 @@ public:
 private:
     int width, height;
     int robotX, robotY;
+    int robotAngle = 0;     // 0: Arriba, 90: Derecha, 180: Abajo, 270: Izquierda
     std::vector<std::vector<int>> grid;
-    std::mutex mapMutex; // Para evitar problemas con los hilos del servidor
+    std::mutex mapMutex;    // Para evitar problemas con los hilos del servidor
 };
 
 #endif // MAPPING_H

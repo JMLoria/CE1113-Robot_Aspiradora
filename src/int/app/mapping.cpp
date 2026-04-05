@@ -26,7 +26,7 @@ void MappingManager::addObstacle(int x, int y) {
 std::string MappingManager::getMapAsJson() {
     std::lock_guard<std::mutex> lock(mapMutex);
     std::stringstream ss;
-    ss << "{\"robot\": [" << robotX << ", " << robotY << "], \"grid\": [";
+    ss << "{\"robot\": [" << robotX << ", " << robotY << "], \"angle\": " << robotAngle << ", \"grid\": [";
     for (int i = 0; i < height; ++i) {
         ss << "[";
         for (int j = 0; j < width; ++j) {

@@ -5,12 +5,19 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <cmath>
 
 
 int main() {
     crow::SimpleApp app;
     AudioManager audio; 
     MappingManager mapper(20, 20);
+
+    // Estado local para el control de orientacion
+    int robot_angle = 0;
+    // Inicia en el centro de la grilla 
+    int cur_x = 10;
+    int cur_y = 10;
 
     // Alerta de encendido al iniciar el servidor
     audio.notifications("sys_on");
@@ -54,6 +61,32 @@ int main() {
     ([&](std::string mode) {
         std::cout << "[MODO] Cambiando a: " << mode << std::endl;
         return crow::response(200, "Modo actualizado");
+    });
+
+    // --- ENDPOINTS CONTROL REMOTO MANUAL ---  
+    CROW_ROUTE(app, "/api/move/<string>") 
+    ([&](std::string dir) {
+        if (dir == "left") {
+            robot_angle = (robot_angle - 90 + 360) % 360;
+            std::cout << "[MOTOR] Rotando Izquierda. Nuevo angulo: " << robot_angle << std::endl;
+        } else if (dir == "right") {
+            robot_angle = (robot_angle + 90) % 360;
+            std::cout << "[MOTOR] Rotando Derecha. Nuevo angulo: " << robot_angle << std::endl;
+        } else if (dir == "forward" || dir == "backward") {
+            int step = (dir == "forward") ? 1 : -1;
+
+            // Logica de movimiento segun orientacion
+            if (robot_angle == 0)   cur_y -= step;  // Norte
+            if (robot_angle == 90)  cur_x += step;  // Este
+            if (robot_angle == 180) cur_y += step;  // Sur
+            if (robot_angle == 270) cur_x -= step;  // Oeste
+
+            mapper.updateRobotPosition(cur_x, cur_y);
+            std::cout << "[MOTOR]" << dir << " a pos: " << cur_x << "," << cur_y << std::endl;
+        } else if (dir == "stop") {
+            std::cout << "[MOTOR] Detenido" << std::endl;
+        }
+        return crow::response(200, "OK");
     });
 
     // --- ENDPONTS MUSICA ---
@@ -140,6 +173,7 @@ int main() {
             auto map_data = crow::json::load(mapper.getMapAsJson());
             response["map"]["grid"] = map_data["grid"];
             response["map"]["robot"] = map_data["robot"];
+            response["map"]["angle"] = robot_angle;
 
             // 2. Datos de Audio Real (Extraídos del hilo de mpg123)
             response["audio"]["track"] = audio.getCurrentTrackName();

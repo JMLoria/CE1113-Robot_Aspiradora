@@ -29,10 +29,6 @@
         </div>
 
         <div class="panel">
-            <h3>Sincronizacion</h3>
-            <div style="margin-bottom: 20px;">
-                <button onclick="pedirActualizacion()" style="background: #2980b9; width: 100%;">Actualizar Mapa</button>
-            </div>
             <h3>Modos de Operacion</h3>
             <div style="display: flex; gap: 5px; margin-bottom:20px;">
                 <button onclick="setMode('auto')" id="btn-auto">Autonomo</button>
@@ -41,11 +37,11 @@
 
             <h3>Control Remoto</h3>
             <div class="controls">
-                <div></div><button onclick="move('forward')">w</button><div></div>
-                <button onclick="move('left')">a</button>
-                <button onclick="move('stop')" style="background: #c0392b;">esc</button>
-                <button onclick="move('right')">d</button>
-                <div></div><button onclick="move('backward')">s</button><div></div>
+                <div></div><button onclick="move('forward')">▲</button><div></div>
+                <button onclick="move('left')">◄</button>
+                <button onclick="move('stop')" style="background: #c0392b;">⏹</button>
+                <button onclick="move('right')">►</button>
+                <div></div><button onclick="move('backward')">▼</button><div></div>
             </div>
 
             <h3 style="margin-top: 20px;">Reproductor MP3</h3>

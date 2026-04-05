@@ -34,7 +34,7 @@ function connect() {
 
         // Renderizar Mapa
         if (data.map) {
-            renderMap(data.map.grid, data.map.robot);
+            renderMap(data.map.grid, data.map.robot, data.map.angle);
         }
 
         // Renderizar Audio
@@ -126,14 +126,17 @@ function skipTime(dir) { sendAction(`audio/${dir}`); } // 'forward' o 'back'
 function changeVolume(dir) { sendAction(`audio/volume/${dir}`); } // 'up' o 'down'
 
 // --- DIBUJO DEL MAPA ---
-function renderMap(grid, robot) {
+function renderMap(grid, robot, angle) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Dibujar celdas
+    // 1. Dibujar celdas (Visitadas y Obstaculos)
     for (let y = 0; y < GRID_SIZE; y++) {
         for (let x = 0; x < GRID_SIZE; x++) {
             if (grid[y][x] === 1) {
-                ctx.fillStyle = '#444';
+                ctx.fillStyle = '#777';     // VISITADA
+                ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+            } else if (grid[y][x] == 2) {
+                ctx.fillStyle = '#ff4d4d';  // OBSTACULO
                 ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
             }
             ctx.strokeStyle = '#222';
@@ -142,14 +145,27 @@ function renderMap(grid, robot) {
     }
 
     // Dibujar Robot
-    ctx.fillStyle = '#00f2ff';
+    // Calcula el cenbtro de la celda donde esta el robot
+    const centerX = robot[0] * CELL_SIZE + CELL_SIZE / 2;
+    const centerY = robot[1] * CELL_SIZE + CELL_SIZE / 2;
+
+    ctx.save(); // Guarda el estado actual del canvas
+    ctx.translate(centerX, centerY); // Mueve el origen al centro del robot
+    ctx.rotate((angle * Math.PI) / 180);
+
+    ctx.fillStyle = "#00f2ff";
     ctx.beginPath();
-    ctx.arc(
-        robot[0] * CELL_SIZE + CELL_SIZE / 2,
-        robot[1] * CELL_SIZE + CELL_SIZE / 2,
-        CELL_SIZE / 3, 0, Math.PI * 2
-    );
+
+    // Dibuja el triangulo
+    ctx.moveTo(0, -CELL_SIZE / 2.5);            // La punta en (0, -altura)
+    ctx.lineTo(-CELL_SIZE / 3, CELL_SIZE / 3);  // Esquina inferior izquierda
+    ctx.lineTo(CELL_SIZE / 3, CELL_SIZE / 3);   // Espina inferior derecha
+
+    ctx.closePath();
     ctx.fill();
+
+    ctx.restore(); // Restaura el canvas para que la matriz no se dibuje rotada
+
 }
 
 // --- LOOP DE ACTUALIZACION
