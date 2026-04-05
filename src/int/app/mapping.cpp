@@ -37,3 +37,16 @@ std::string MappingManager::getMapAsJson() {
     ss << "]}";
     return ss.str();
 }
+
+bool MappingManager::isTraversable(int x, int y) {
+    std::lock_guard<std::mutex> lock(mapMutex);
+    // Verificar limites del mapa
+    if (x < 0 || x >= width || y < 0 || y >= height) return false;
+    // Retorna true solo si NO es un obstaculo
+    return grid[y][x] != OBSTACLE;
+}
+
+
+void MappingManager::resetMap() {
+
+}

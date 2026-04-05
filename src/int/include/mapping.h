@@ -20,6 +20,9 @@ public:
     // Convierte la grilla a JSON para enviarla por el WebSocket de Crow
     std::string getMapAsJson();
 
+    // Verifica si una coordenada es transitable.
+    bool isTraversable(int x, int y);
+
     void resetMap();
 
 private:

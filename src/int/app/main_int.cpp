@@ -74,15 +74,24 @@ int main() {
             std::cout << "[MOTOR] Rotando Derecha. Nuevo angulo: " << robot_angle << std::endl;
         } else if (dir == "forward" || dir == "backward") {
             int step = (dir == "forward") ? 1 : -1;
+            int next_x = cur_x;
+            int next_y = cur_y;
 
             // Logica de movimiento segun orientacion
-            if (robot_angle == 0)   cur_y -= step;  // Norte
-            if (robot_angle == 90)  cur_x += step;  // Este
-            if (robot_angle == 180) cur_y += step;  // Sur
-            if (robot_angle == 270) cur_x -= step;  // Oeste
+            if (robot_angle == 0)   next_y -= step;  // Norte
+            if (robot_angle == 90)  next_x += step;  // Este
+            if (robot_angle == 180) next_y += step;  // Sur
+            if (robot_angle == 270) next_x -= step;  // Oeste
 
-            mapper.updateRobotPosition(cur_x, cur_y);
-            std::cout << "[MOTOR]" << dir << " a pos: " << cur_x << "," << cur_y << std::endl;
+            if (mapper.isTraversable(next_x, next_y)) {
+                cur_x = next_x;
+                cur_y = next_y;
+                mapper.updateRobotPosition(cur_x, cur_y);
+                std::cout << "[MOTOR] " << dir << std::endl;
+            } else {
+                std::cout << "[ALERTA] Obstáculo detectado en " << next_x << "," << next_y << ". Movimiento cancelado." << std::endl;
+                audio.notifications("obstacle");
+            }
         } else if (dir == "stop") {
             std::cout << "[MOTOR] Detenido" << std::endl;
         }
@@ -156,6 +165,24 @@ int main() {
     ([&](std::string alert_name) {
         audio.notifications(alert_name);
         return crow::response(200, "Notificacion enviada");
+    });
+
+    // --- ENDPOINT DE PRUEBA
+    CROW_ROUTE(app, "/api/test/obstacles")
+    ([&]() {
+        std::cout << "[TEST] Generando obstáculos de prueba..." << std::endl;
+        
+        // Dibujamos una pequeña "pared" o borde para probar
+        for(int i = 5; i < 15; i++) {
+            mapper.addObstacle(i, 5);  // Línea horizontal
+            mapper.addObstacle(5, i);  // Línea vertical
+        }
+        
+        // Un obstáculo aleatorio cerca del robot
+        mapper.addObstacle(12, 12);
+        mapper.addObstacle(8, 8);
+
+        return crow::response(200, "Obstaculos generados. Revisa la interfaz web.");
     });
 
     // --- WEBSOCKET ---
