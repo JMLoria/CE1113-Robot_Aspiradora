@@ -1,0 +1,37 @@
+#!/bin/bash
+
+# Limpiar la terminal
+clear
+
+# --- Configuracion ---
+BUILD_DIR="build"
+EXECUTABLE="./robot_int_serv"
+
+echo "==========================================="
+echo "INICIANDO COMPILACION Y LANZAMIENTO APP"
+echo "==========================================="
+
+# Crear carpeta build si no existe, si existe, clean CMake
+if [ ! -d "$BUILD_DIR" ]; then
+    mkdir "$BUILD_DIR"
+else 
+    echo "Limpiando cache de CMake anterior"
+    rm -rf "$BUILD_DIR"/*
+fi
+
+cd "$BUILD_DIR" || exit 
+
+# Ejecutar CMake
+echo "Configurando con CMake..."
+cmake ..
+
+# Compilar
+echo "Compilando proyecto..."
+if make; then 
+    echo "Compilacion exitosa. Iniciando servidor..."
+    echo "------------------------------------------"
+    $EXECUTABLE
+else 
+    echo "ERROR en la compilacion. Revisa el codigo"
+    exit 1
+fi

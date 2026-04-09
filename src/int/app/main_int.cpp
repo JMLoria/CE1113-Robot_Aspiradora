@@ -25,48 +25,51 @@ int main() {
     
     // --- ARCHIVOS ESTATICOS ---
     // Sirve el index.html automaticamente al entrar a http://localhost:8080
-    CROW_ROUTE(app, "/")
-    ([](const crow::request& req, crow::response& res) {
-        std::string path = "/home/jose/Documents/TEC/2026/I_Semestre/CE1113-Empotrados/CE1113-Robot_Aspiradora/src/int/web/index.html";
-        std::ifstream f(path);
-        if (f.is_open()) {
+    CROW_ROUTE(app, "/")    // Ruta para el HTML
+    ([]() {
+        std::ifstream f("../web/index.html");
+        if (f) {
             std::stringstream buffer;
             buffer << f.rdbuf();
+            crow::response res(buffer.str());
+
             res.set_header("Content-Type", "text/html; charset=UTF-8");
-            res.write(buffer.str());
-            std::cout << "[SUCCESS] index.html enviado correctamente." << std::endl;
-        } else {
-            res.code = 404;
-            res.write("Error critico: No se encontro index.html");
+            res.set_header("Access-Control-Allow-Origin", "*");
+
+            return res;
         }
-        res.end();
+        return crow::response(404, "index.html no encontrado");
     });
 
-    CROW_ROUTE(app, "/app.js")
-    ([](const crow::request& req, crow::response& res) {
-        std::string path = "/home/jose/Documents/TEC/2026/I_Semestre/CE1113-Empotrados/CE1113-Robot_Aspiradora/src/int/web/app.js";
-        std::ifstream f(path);
-        if (f.is_open()) {
+    CROW_ROUTE(app, "/app.js")  // Ruta para el JS
+    ([]() {
+        std::ifstream f("../web/app.js");
+        if (f) {
             std::stringstream buffer;
             buffer << f.rdbuf();
+            crow::response res(buffer.str());
+
             res.set_header("Content-Type", "application/javascript");
-            res.write(buffer.str());
-            std::cout << "[SUCCESS] app.js enviado correctamente." << std::endl;
-        } else {
-            res.code = 404;
+            res.set_header("Access-Control-Allow-Origin", "*");
+            
+            return res;
         }
-        res.end();
+        return crow::response(404);
     });
 
     CROW_ROUTE(app, "/api/mode/<string>")
-    ([&](std::string mode) {
+    ([&](const crow::request& req, std::string mode) {
         std::cout << "[MODO] Cambiando a: " << mode << std::endl;
-        return crow::response(200, "Modo actualizado");
+        crow::response res(200, "Modo actualizado");
+        // Esto permite que el archivo HTML local se comunique con el servidor
+        res.set_header("Access-Control-Allow-Origin", "*"); 
+        return res;
+        // return crow::response(200, "Modo actualizado");
     });
 
     // --- ENDPOINTS CONTROL REMOTO MANUAL ---  
     CROW_ROUTE(app, "/api/move/<string>") 
-    ([&](std::string dir) {
+    ([&](const crow::request& req, std::string dir) {
         if (dir == "left") {
             robot_angle = (robot_angle - 90 + 360) % 360;
             std::cout << "[MOTOR] Rotando Izquierda. Nuevo angulo: " << robot_angle << std::endl;
@@ -102,81 +105,129 @@ int main() {
 
             std::cout << "[SISTEMA] Stop: Motores detenidos y mapa limpio" << std::endl;
         }
-        return crow::response(200, "OK");
+        crow::response res(200, "OK");
+        // Esto permite que el archivo HTML local se comunique con el servidor
+        res.set_header("Access-Control-Allow-Origin", "*"); 
+        return res;
+        // return crow::response(200, "OK");
     });
 
     // --- ENDPONTS MUSICA ---
     CROW_ROUTE(app, "/api/audio/play/current")
-    ([&]() {
+    ([&](const crow::request& req) {
         audio.play();
-        return crow::response(200, "Reproduciondo cancion");
+        crow::response res(200, "Reproduciondo cancion");
+        // Esto permite que el archivo HTML local se comunique con el servidor
+        res.set_header("Access-Control-Allow-Origin", "*"); 
+        return res;
+        // return crow::response(200, "Reproduciondo cancion");
     });
 
     CROW_ROUTE(app, "/api/audio/play/<int>")
-    ([&](int track_id) {
+    ([&](const crow::request& req, int track_id) {
         audio.play(track_id);
-        return crow::response(200, "Reproduciondo cancion");
+        crow::response res(200, "Reproduciondo cancion");
+        // Esto permite que el archivo HTML local se comunique con el servidor
+        res.set_header("Access-Control-Allow-Origin", "*"); 
+        return res;
+        // return crow::response(200, "Reproduciondo cancion");
     });
 
     CROW_ROUTE(app, "/api/audio/pause")
-    ([&]() {
+    ([&](const crow::request& req) {
         audio.pause();
-        return crow::response(200, "Pausa/Reanudar");
+        crow::response res(200, "Pausa/Reanudar");
+        // Esto permite que el archivo HTML local se comunique con el servidor
+        res.set_header("Access-Control-Allow-Origin", "*"); 
+        return res;
+        // return crow::response(200, "Pausa/Reanudar");
     });
 
     CROW_ROUTE(app, "/api/audio/stop")
-    ([&]() {
+    ([&](const crow::request& req) {
         audio.stop();
-        return crow::response(200, "Reproduccion detenida");
+        crow::response res(200, "Reproduccion detenida");
+        // Esto permite que el archivo HTML local se comunique con el servidor
+        res.set_header("Access-Control-Allow-Origin", "*"); 
+        return res;
+        // return crow::response(200, "Reproduccion detenida");
     });
 
     CROW_ROUTE(app, "/api/audio/next")
-    ([&]() {
+    ([&](const crow::request& req) {
         audio.nextSong();
-        return crow::response(200, "Siguiente");
+        crow::response res(200, "Siguiente");
+        // Esto permite que el archivo HTML local se comunique con el servidor
+        res.set_header("Access-Control-Allow-Origin", "*"); 
+        return res;
+        // return crow::response(200, "Siguiente");
     });
 
     CROW_ROUTE(app, "/api/audio/prev")
-    ([&]() {
+    ([&](const crow::request& req) {
         audio.prevSong();
-        return crow::response(200, "Anterior");
+        crow::response res(200, "Anterior");
+        // Esto permite que el archivo HTML local se comunique con el servidor
+        res.set_header("Access-Control-Allow-Origin", "*"); 
+        return res;
+        // return crow::response(200, "Anterior");
     });
 
     // --- ENDPOINTS CONTROL AUDIO ---
     CROW_ROUTE(app, "/api/audio/forward")
-    ([&]() {
+    ([&](const crow::request& req) {
         audio.forward5s();
-        return crow::response(200, "+5s");
+        crow::response res(200, "+5s");
+        // Esto permite que el archivo HTML local se comunique con el servidor
+        res.set_header("Access-Control-Allow-Origin", "*"); 
+        return res;
+        // return crow::response(200, "+5s");
     });
 
     CROW_ROUTE(app, "/api/audio/back")
-    ([&]() {
+    ([&](const crow::request& req) {
         audio.back5s();
-        return crow::response(200, "-5s");
+        crow::response res(200, "-5s");
+        // Esto permite que el archivo HTML local se comunique con el servidor
+        res.set_header("Access-Control-Allow-Origin", "*"); 
+        return res;
+        // return crow::response(200, "-5s");
     });
 
     CROW_ROUTE(app, "/api/audio/volume/up")
-    ([&]() {
+    ([&](const crow::request& req) {
         audio.upVolume();
-        return crow::response(200, "Volumen +");
+        crow::response res(200, "Volumen +");
+        // Esto permite que el archivo HTML local se comunique con el servidor
+        res.set_header("Access-Control-Allow-Origin", "*"); 
+        return res;
+        // return crow::response(200, "Volumen +");
     });
 
     CROW_ROUTE(app, "/api/audio/volume/down")
-    ([&]() {
+    ([&](const crow::request& req) {
         audio.downVolume();
-        return crow::response(200, "Volumen -");
+        crow::response res(200, "Volumen -");
+        // Esto permite que el archivo HTML local se comunique con el servidor
+        res.set_header("Access-Control-Allow-Origin", "*"); 
+        return res;
+        // return crow::response(200, "Volumen -");
     });
 
     // --- ENDPOINTS NOTIFICACIONES (SISTEMA) ---
     CROW_ROUTE(app, "/api/audio/notify/<string>")
-    ([&](std::string alert_name) {
+    ([&](const crow::request& req, std::string alert_name) {
         audio.notifications(alert_name);
-        return crow::response(200, "Notificacion enviada");
+        crow::response res(200, "Notificacion enviada");
+        // Esto permite que el archivo HTML local se comunique con el servidor
+        res.set_header("Access-Control-Allow-Origin", "*"); 
+        return res;
+        // return crow::response(200, "Notificacion enviada");
     });
 
     // --- ENDPOINT DE PRUEBA
     CROW_ROUTE(app, "/api/test/obstacles")
-    ([&]() {
+    ([&](const crow::request& req) {
         std::cout << "[TEST] Generando obstáculos de prueba..." << std::endl;
         
         std::random_device rd;
@@ -194,7 +245,11 @@ int main() {
             }
         }
 
-        return crow::response(200, "Obstaculos generados.");
+        crow::response res(200, "Obstaculos generados.");
+        // Esto permite que el archivo HTML local se comunique con el servidor
+        res.set_header("Access-Control-Allow-Origin", "*"); 
+        return res;
+        // return crow::response(200, "Obstaculos generados.");
     });
 
     // --- WEBSOCKET ---

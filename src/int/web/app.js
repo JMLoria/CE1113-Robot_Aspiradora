@@ -17,10 +17,10 @@ let isPlaying = false;
 window.onload = connect;
 
 function connect() {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    // const serverAddr = window.location.host || 'localhost:8080';
+    const wsUrl = `ws://127.0.0.1:8080/ws`;
 
-    console.log("Intentando conectar a:", wsUrl);
+    console.log("Conectando WebSocket a: ", wsUrl);
     socket = new WebSocket(wsUrl);
 
     socket.onopen = () => {
@@ -46,6 +46,8 @@ function connect() {
             isConnected = false;
             statusDot.className = "status-dot offline";
             statusText.innerHTML = '<span class="status-dot offline"></span> Desconectado';
+            // Reintentar conexion en 2 segundos
+            setTimeout(connect, 2000);
         }
 
     };
@@ -81,7 +83,8 @@ function formatTime(secs) {
 // --- ACCIONES HACIA EL SEVIDOR ---
 async function sendAction(endpoint) {
     try {
-        const response = await fetch(`/api/${endpoint}`);
+        // const serverAddr = window.location.host || 'localhost:8080';
+        const response = await fetch(`http://127.0.0.1:8080/api/${endpoint}`);
         if (!response.ok) throw new Error('Error en la peticion');
         console.log(`Accion exitosa: ${endpoint}`);
     } catch (error) {
