@@ -39,3 +39,24 @@
 
 # debug information files
 *.dwo
+
+# --- Compilación y Binarios ---
+# Ignora todas las carpetas build en cualquier subdirectorio
+build/
+bin/
+obj/
+
+# Ignora archivos generados por CMake
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+cmake_install.cmake
+Makefile
+install_manifest.txt
+
+# --- Archivos del Sistema y Editores ---
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
