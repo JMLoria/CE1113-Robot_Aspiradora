@@ -1,12 +1,10 @@
+#define _POSIX_C_SOURCE 199309L
 #include "librobot.h"
 #include <stdio.h>
-
-// Forward declarations for gpiod types
-struct gpiod_chip;
-struct gpiod_line;
 #include <stdlib.h>
 #include <time.h>
 #include <stdint.h>
+#include <sys/types.h>
 
 // Chip GPIO de la RPi4
 #define GPIO_CHIP        "gpiochip0"
