@@ -1,6 +1,9 @@
 #include "librobot.h"
-#include <gpiod.h>
 #include <stdio.h>
+
+// Forward declarations for gpiod types
+struct gpiod_chip;
+struct gpiod_line;
 #include <stdlib.h>
 #include <time.h>
 #include <stdint.h>
