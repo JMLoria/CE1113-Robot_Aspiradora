@@ -42,6 +42,10 @@ function connect() {
             updateAudioUI(data.audio);
         }
 
+        if (data.status) {
+            updateUI(data.status);
+        }
+
         socket.onclose = () => {
             isConnected = false;
             statusDot.className = "status-dot offline";
@@ -51,6 +55,39 @@ function connect() {
         }
 
     };
+}
+
+function updateUI(status) {
+    // Actualizar LEDs visuales
+    document.getElementById('led-system').className = status.system ? 'led led-blue' : 'led led-off';
+    document.getElementById('led-manual').className = status.manual ? 'led led-green' : 'led led-off';
+    document.getElementById('led-auto').className = status.autonomous ? 'led led-green' : 'led led-off';
+    document.getElementById('led-obstacle').className = status.obstacle ? 'led led-red' : 'led led-off';
+
+    // Cambiar color de botones de modo
+    const btnManual = document.getElementById('btn-manual');
+    const btnAuto = document.getElementById('btn-auto');
+
+    if (status.autonomous) {
+        btnAuto.style.backgroundColor = '#2ecc71';
+        btnManual.style.backgroundColor = '#666';
+        disableManualControls(true);
+    } else {
+        btnAuto.style.backgroundColor = '#666';
+        btnManual.style.backgroundColor = '#2ecc71';
+        disableManualControls(false);
+    }
+}
+
+function disableManualControls(disabled) {
+    // Bloquea los botones de las flechas
+    const buttons = document.querySelectorAll('.control-btn');
+    buttons.forEach(btn => {
+        btn.disabled = disabled;
+        btn.style.opacity = disabled ? "0.5" : "1.0";
+        btn.style.cursor = disabled ? "not-allowed" : "pointer";
+        btn.style.pointerEvents = disabled ? "none" : "auto";
+    });
 }
 
 // --- LOGICA DE INTERFAZ DE AUDIO ---

@@ -19,6 +19,10 @@ int main() {
     // Inicia en el centro de la grilla 
     int cur_x = 10;
     int cur_y = 10;
+    // Variables de estado LEDs
+    bool is_autonomous = false;
+    bool obstacle_alert = false;
+    bool system_on = true;
 
     // Alerta de encendido al iniciar el servidor
     audio.notifications("sys_on");
@@ -57,9 +61,25 @@ int main() {
         return crow::response(404);
     });
 
+    CROW_ROUTE(app, "/style.css") // Ruta para el CSS
+    ([]() {
+        std::ifstream f("../web/style.css");
+        if (f) {
+            std::stringstream buffer;
+            buffer << f.rdbuf();
+            crow::response res(buffer.str());
+
+            res.set_header("Content-Type", "text/css");
+            res.set_header("Access-Control-Allow-Origin", "*");
+            return res;
+        }
+        return crow::response(404);
+    });
+
     CROW_ROUTE(app, "/api/mode/<string>")
     ([&](const crow::request& req, std::string mode) {
-        std::cout << "[MODO] Cambiando a: " << mode << std::endl;
+        is_autonomous = (mode == "auto"); 
+        std::cout << "[MODO] Cambiando a: " << mode << "[" << is_autonomous << "]" << std::endl;
         crow::response res(200, "Modo actualizado");
         // Esto permite que el archivo HTML local se comunique con el servidor
         res.set_header("Access-Control-Allow-Origin", "*"); 
@@ -273,6 +293,12 @@ int main() {
             response["audio"]["track"] = audio.getCurrentTrackName();
             response["audio"]["current"] = audio.getCurrentTime();
             response["audio"]["total"] = audio.getTotalTime();
+
+            // 3. Estado de LEDs y Modos
+            response["status"]["autonomous"] = is_autonomous;
+            response["status"]["manual"] = !is_autonomous;
+            response["status"]["obstacle"] = obstacle_alert;
+            response["status"]["system"] = system_on;
             
             // Enviamos todo el paquete al navegador
             conn.send_text(response.dump());

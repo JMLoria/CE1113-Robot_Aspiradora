@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">    
 <head>
-    <meta charset="UFT-8">
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CE1113 - Robot Aspiradora G6 - Panel de Control</title>
     <link rel="stylesheet" href="style.css"> <style>
@@ -24,24 +24,37 @@
 
     <div class="container">
         <div>
-            <h3>Mapa de Navegacion 2D</h3>
+            <h3>Mapa de Navegación 2D</h3>
             <canvas id="mapCanvas" width="400" height="400"></canvas>
         </div>
 
         <div class="panel">
-            <h3>Modos de Operacion</h3>
+            <h3>Estado del Sistema (LEDs)</h3>
+            <div class="led-container">
+                <div id="led-system" class="led led-blue"></div> <span>Sistema</span>
+                <div id="led-manual" class="led led-off"></div> <span>Manual</span>
+                <div id="led-auto" class="led led-off"></div> <span>Autónomo</span>
+                <div id="led-obstacle" class="led led-off"></div> <span>Alerta</span>
+            </div>
+            <h3>Modos de Operación</h3>
             <div style="display: flex; gap: 5px; margin-bottom:20px;">
-                <button onclick="setMode('auto')" id="btn-auto">Autonomo</button>
-                <button onclick="setMode('manual')" id="btn-manual" class="active">Manual</button>
+                <button id="btn-auto" onclick="setMode('auto')" id="btn-auto">Autónomo</button>
+                <button id="btn-manual" onclick="setMode('manual')" id="btn-manual" class="active">Manual</button>
             </div>
 
             <h3>Control Remoto</h3>
             <div class="controls">
-                <div></div><button onclick="move('forward')">▲</button><div></div>
-                <button onclick="move('left')">◄</button>
-                <button onclick="move('stop')" style="background: #c0392b;">⏹</button>
-                <button onclick="move('right')">►</button>
-                <div></div><button onclick="move('backward')">▼</button><div></div>
+                <div></div>
+                <button class="control-btn" onclick="move('forward')">▲</button>
+                <div></div>
+
+                <button class="control-btn" onclick="move('left')">◄</button>
+                <button class="control-btn" onclick="move('stop')" style="background: #c0392b;">⏹</button>
+                <button class="control-btn" onclick="move('right')">►</button>
+
+                <div></div>
+                <button class="control-btn" onclick="move('backward')">▼</button>
+                <div></div>
             </div>
 
             <h3 style="margin-top: 20px;">Reproductor MP3</h3>
