@@ -5,7 +5,9 @@
 #include <sstream>
 #include <algorithm>
 #include <chrono>
+#include <filesystem>
 
+namespace fs = std::filesystem;
 
 AudioManager::AudioManager() {
     loadPlaylist();
@@ -56,13 +58,29 @@ void AudioManager::initProcess() {
 }
 
 void AudioManager::loadPlaylist() {
-    playlist = {
-        "Blacklight [Ado] - 2022",
-        "Odo [Ado] - 2021",
-        "Show [Ado] - 2023",
-        "Usseewa [Ado] - 2020",
-        "Vivarium [Ado] - 2026"
-    };
+    playlist.clear();
+
+    std::string music_dir = data_path + "musics/";
+
+    try {
+        if (fs::exists(music_dir) && fs::is_directory(music_dir)) {
+            for (const auto& entry : fs::directory_iterator(music_dir)) {
+                // Verificar que sea archivo y que termine en .mp3
+                if (entry.is_regular_file() && entry.path().extension() == ".mp3") {
+                    // Guarda solo el nombre del archivo sin la extension .mp3
+                    playlist.push_back(entry.path().stem().string());
+                }
+            }
+        } else {
+            std::cerr << "[AUDIO] Error: La carpeta de musica no existe en " << music_dir << std::endl;
+        }
+    } catch (const fs::filesystem_error& e) {
+        std::cerr << "[AUDIO] Error de sistema de archivos" << e.what() << std::endl; 
+    }
+
+    std::sort(playlist.begin(), playlist.end());
+
+    std::cout << "[AUDIO] Playlist cargada: " << playlist.size() << " canciones encontradas" << std::endl; 
 }
 
 void AudioManager::sendCommand(const std::string& cmd) {
