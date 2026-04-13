@@ -153,6 +153,35 @@ int main() {
         // return crow::response(200, "Reproduciondo cancion");
     });
 
+    CROW_ROUTE(app, "/api/audio/playlist")
+    ([&]() {
+        std::vector<std::string> songs = audio.getPlaylist(); 
+
+        crow::json::wvalue response;
+        response = songs;
+
+        crow::response res(response);
+        res.set_header("Access-Control-Allow-Origin", "*");
+        res.set_header("Content-Type", "application/json");
+        return res;
+    });
+
+    CROW_ROUTE(app, "/api/audio/play_specific")
+    .methods("POST"_method)
+    ([&](const crow::request& req) {
+        auto song_name = req.url_params.get("name");
+        if (song_name) {
+            audio.playSpecific(song_name);
+
+            crow::response res(200, "Reproduciendo: " + std::string(song_name));
+            res.set_header("Access-Control-Allow-Origin", "*");
+            return res;
+        }
+        crow::response error_res(400, "Nombre no proporcionado");
+        error_res.set_header("Access-Control-Allow-Origin", "*");
+        return error_res;
+    });
+
     CROW_ROUTE(app, "/api/audio/pause")
     ([&](const crow::request& req) {
         audio.pause();
@@ -293,6 +322,7 @@ int main() {
             response["audio"]["track"] = audio.getCurrentTrackName();
             response["audio"]["current"] = audio.getCurrentTime();
             response["audio"]["total"] = audio.getTotalTime();
+            response["audio"]["volume"] = audio.getVolume();
 
             // 3. Estado de LEDs y Modos
             response["status"]["autonomous"] = is_autonomous;

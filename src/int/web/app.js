@@ -13,6 +13,9 @@ let isConnected = false;
 // Estados de reproduccion
 let isPlaying = false;
 
+// Lista que viene del servidor
+let songs = [];
+
 // Conectar al servidor al cargar la pagina
 window.onload = connect;
 
@@ -96,6 +99,8 @@ function updateAudioUI(audioData) {
     const timeCurrent = document.getElementById('time-current');
     const timeTotal = document.getElementById('time-total');
     const progressBar = document.getElementById('progress-bar');
+    const volumeBar = document.getElementById('volume-bar');
+    const volumeText = document.getElementById('volume-text');
 
     // Actualizar nombre de la cancion
     if (trackInfo) trackInfo.innerText = audioData.track || "Sin reproducción";
@@ -108,6 +113,13 @@ function updateAudioUI(audioData) {
     if (progressBar && audioData.total > 0) {
         const percentage = (audioData.current / audioData.total) * 100
         progressBar.style.width = `${percentage}%`;
+    }
+
+    // Actualizar visualizacion de volumen
+    if (volumeBar && audioData.volume !== undefined) {
+        volumeBar.style.width = `${audioData.volume}%`;
+        if(volumeText) volumeText.innerText = `${audioData.volume}%`;
+
     }
 }
 
@@ -142,6 +154,42 @@ function togglePlay() {
     } else {
         sendAction('audio/pause'); 
         document.getElementById('btn-play-pause').innerText = "⏸";
+    }
+}
+
+function togglePlaylist() {
+    const menu = document.getElementById('playlist-menu');
+    const listContainer = document.getElementById('songs-list');
+
+    if (menu.style.display === 'none' || menu.style.display === '') {
+        fetch('/api/audio/playlist')
+            .then(response => { 
+                return response.json();
+            })
+            .then(songs => {
+                if (!Array.isArray(songs)) {
+                    console.error("La respuesta no es un arreglo:", songs);
+                    return;
+                }
+                listContainer.innerHTML = ''; // Limpiar lista previa
+                songs.forEach(song => {
+                    const item = document.createElement('div');
+                    item.innerText = song;
+                    item.style.padding = "8px";
+                    item.style.cursor = "pointer";
+                    item.style.borderBottom = "1px solid #333";
+                    item.onmouseover = () => item.style.background = "#333";
+                    item.onmouseout = () => item.style.background = "transparent";
+                    item.onclick = () => {
+                        fetch(`/api/audio/play_specific?name=${encodeURIComponent(song)}`, { method: 'POST' });
+                        menu.style.display = 'none';
+                    };
+                    listContainer.appendChild(item);
+                });
+                menu.style.display = 'block';
+            });
+    } else {
+        menu.style.display = 'none';
     }
 }
 

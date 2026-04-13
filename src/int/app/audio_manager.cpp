@@ -96,7 +96,7 @@ void AudioManager::sendCommand(const std::string& cmd) {
 void AudioManager::play(int index) {
     if (index == -1 && is_paused) {
         pause();
-         return;
+        return;
     } 
 
     if (index != -1) current_track_index = index % playlist.size();
@@ -106,6 +106,7 @@ void AudioManager::play(int index) {
 
     std::string full_path = data_path + "musics/" + playlist[current_track_index] + ".mp3";
     sendCommand("LOAD " + full_path);
+    sendCommand("VOLUME " + std::to_string(volume));
     std::cout << "[AUDIO] Reproduciendo: " << playlist[current_track_index] << "." << std::endl;
 }
 
@@ -137,6 +138,20 @@ void AudioManager::prevSong() {
     is_paused = false; 
     current_track_index = (current_track_index - 1 + playlist.size()) % playlist.size();
     play(); 
+}
+
+void AudioManager::playSpecific(const std::string& songName) {
+    for (size_t i = 0; i < playlist.size(); i++) {
+        if (playlist[i] == songName) {
+            pause();
+            std::cout << "[AUDIO] Selección manual: " << songName << " (Índice: " << i << ")" << std::endl;
+
+            current_track_index = i;
+
+            play(i);
+            return;
+        }
+    }
 }
 
 void AudioManager::forward5s() {
@@ -177,3 +192,12 @@ int AudioManager::getTotalTime() {
 std::string AudioManager::getCurrentTrackName() {
     return playlist[current_track_index];
 }
+
+int AudioManager::getVolume() const {
+    return volume.load(); 
+}
+
+std::vector<std::string> AudioManager::getPlaylist() const {
+    return playlist;
+}
+
