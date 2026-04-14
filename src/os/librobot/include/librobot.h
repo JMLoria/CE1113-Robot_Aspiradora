@@ -41,25 +41,35 @@ typedef enum {
     LED_ON  = 1
 } robot_led_state_t;
 
+/* --- Estructuras de Datos --- */
+
+// Unificamos Pose y Odometry para que tu compañero sea feliz
+typedef struct {
+    float x;          /* Posición estimada en X (cm) */
+    float y;          /* Posición estimada en Y (cm) */
+    float angle;      /* Orientación en grados */
+} Pose;
+
+typedef Pose robot_odometry_t;
+
 typedef struct {
     float front_cm;   /* Distancia frontal en cm */
     float left_cm;    /* Distancia lateral izquierda en cm */
 } robot_sensor_data_t;
 
-typedef struct {
-    float x;          /* Posición estimada en X (cm) */
-    float y;          /* Posición estimada en Y (cm) */
-    float angle_deg;  /* Orientación en grados */
-} robot_odometry_t;
+/* --- Prototipos de Funciones --- */
 
-// Prototipos de funciones
+// Sistema
 robot_status_t robot_init(void);
 robot_status_t robot_shutdown(void);
+robot_status_t robot_set_mode(robot_mode_t mode);
+robot_mode_t   robot_get_mode(void);
 
 // Control de movimiento
 // speed: 0 (parado) a 100 (velocidad máxima)
 robot_status_t robot_move(robot_dir_t dir, uint8_t speed);
 robot_status_t robot_stop(void);
+robot_status_t robot_rotate(robot_dir_t dir, float degrees); // Requisito: Rotación
 robot_status_t robot_get_odometry(robot_odometry_t *odom);
 
 // Sensores
@@ -67,18 +77,18 @@ robot_status_t robot_sensor_read(robot_sensor_data_t *data);
 
 // LEDs
 robot_status_t robot_led_set(robot_led_t led, robot_led_state_t state);
-
-//  Modos de operación
-robot_status_t robot_set_mode(robot_mode_t mode);
-robot_mode_t   robot_get_mode(void);
+robot_led_state_t robot_led_get(robot_led_t led); // Requisito: Get LED
 
 // Audio
-// filepath: ruta absoluta al archivo MP3 */
 robot_status_t robot_audio_play(const char *filepath);
 robot_status_t robot_audio_pause(void);
 robot_status_t robot_audio_stop(void);
-robot_status_t robot_audio_set_volume(uint8_t volume); /* 0-100 */
+robot_status_t robot_audio_set_volume(uint8_t volume);
 robot_status_t robot_audio_get_list(char ***files, int *count);
+
+// Callbacks (Obstáculos)
+typedef void (*robot_obstacle_callback)(float distance);
+void robot_set_obstacle_handler(robot_obstacle_callback cb);
 
 #ifdef __cplusplus
 }
