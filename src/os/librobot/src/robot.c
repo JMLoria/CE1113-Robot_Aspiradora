@@ -6,6 +6,9 @@
 static robot_mode_t current_mode = MODE_MANUAL;
 static int initialized = 0;
 
+static Pose current_pose = {0.0f, 0.0f, 0.0f};      // Memoria de posición
+static robot_obstacle_callback obstacle_cb = NULL; // Memoria del callback
+
 // Funciones de inicialización y cierre
 robot_status_t robot_init(void)
 {
@@ -78,4 +81,23 @@ robot_status_t robot_set_mode(robot_mode_t mode)
 robot_mode_t robot_get_mode(void)
 {
     return current_mode;
+}
+
+
+robot_status_t robot_get_odometry(robot_odometry_t *odom) {
+    if (!odom) return ROBOT_ERR_ARG;
+    *odom = current_pose;
+    return ROBOT_OK;
+}
+
+// Callbacks de Obstáculos 
+void robot_set_obstacle_handler(robot_obstacle_callback cb) {
+    obstacle_cb = cb;
+}
+
+// Función interna para disparar el evento
+void robot_internal_notify_obstacle(float distance) {
+    if (obstacle_cb) {
+        obstacle_cb(distance);
+    }
 }

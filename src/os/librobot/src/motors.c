@@ -168,14 +168,20 @@ robot_status_t robot_stop(void)
     return robot_move(DIR_STOP, 0);
 }
 
-robot_status_t robot_get_odometry(robot_odometry_t *odom)
-{
-    if (!odom) return ROBOT_ERR_ARG;
+// Calibración inicial TODO: (ajustar con voltímetro y luego en piso)
+#define MS_PER_90_DEG 850 
 
-    // TODO: implementar con encoders o estimación por tiempo
-    odom->x         = 0.0f;
-    odom->y         = 0.0f;
-    odom->angle_deg = 0.0f;
-
+robot_status_t robot_rotate(robot_dir_t dir, float degrees) {
+    if (dir != DIR_LEFT && dir != DIR_RIGHT) return ROBOT_ERR_ARG;
+    
+    // Calculamos tiempo según los grados
+    uint32_t duration_ms = (uint32_t)((degrees / 90.0f) * MS_PER_90_DEG);
+    
+    // Girar sobre su eje: un motor adelante, el otro atrás
+    robot_move(dir, 60); 
+    
+    usleep(duration_ms * 1000);
+    
+    robot_stop();
     return ROBOT_OK;
 }
