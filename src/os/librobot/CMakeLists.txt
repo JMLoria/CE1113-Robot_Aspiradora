@@ -49,3 +49,6 @@ install(TARGETS robot
 install(FILES include/librobot.h
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
+
+add_executable(test_hardware test_hardware.c)
+target_link_libraries(test_hardware robot)
