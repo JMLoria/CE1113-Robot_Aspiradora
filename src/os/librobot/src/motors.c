@@ -3,185 +3,124 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <stdint.h>
 #include <pthread.h>
 
-// Chip GPIO de la RPi4
-#define GPIO_CHIP    "gpiochip0"
+#define GPIO_DEVICE "/dev/gpiochip0"
 
-// Pines de dirección (ajustar según circuito físico)
+// Offsets de la RPi4
 #define MOTOR_L_IN1  17
 #define MOTOR_L_IN2  18
 #define MOTOR_R_IN1  22
 #define MOTOR_R_IN2  23
-
-// Pines PWM por software
 #define MOTOR_L_PWM  24
 #define MOTOR_R_PWM  25
 
-// Período PWM en microsegundos (50Hz)
 #define PWM_PERIOD_US 20000
+#define MS_PER_90_DEG 850 // Calibración base
 
-// Estado interno de un motor
 typedef struct {
-    struct gpiod_line *pwm_line;
-    uint8_t            duty_cycle; // 0-100
+    unsigned int       offset;
+    uint8_t            duty_cycle;
     int                running;
     pthread_t          thread;
 } motor_pwm_t;
 
-static struct gpiod_chip *chip       = NULL;
-static struct gpiod_line *line_l_in1 = NULL;
-static struct gpiod_line *line_l_in2 = NULL;
-static struct gpiod_line *line_r_in1 = NULL;
-static struct gpiod_line *line_r_in2 = NULL;
-static motor_pwm_t        pwm_left;
-static motor_pwm_t        pwm_right;
+static struct gpiod_chip *chip = NULL;
+static struct gpiod_line_request *motor_request = NULL;
+static motor_pwm_t pwm_left, pwm_right;
 
-// Hilo que genera la señal PWM por software
-static void *pwm_thread(void *arg)
-{
+static void *pwm_thread(void *arg) {
     motor_pwm_t *m = (motor_pwm_t *)arg;
-
     while (m->running) {
-        uint32_t on_time  = (PWM_PERIOD_US * m->duty_cycle) / 100;
+        uint32_t on_time = (PWM_PERIOD_US * m->duty_cycle) / 100;
         uint32_t off_time = PWM_PERIOD_US - on_time;
 
         if (on_time > 0) {
-            gpiod_line_set_value(m->pwm_line, 1);
+            gpiod_line_request_set_value(motor_request, m->offset, GPIOD_LINE_VALUE_ACTIVE);
             usleep(on_time);
         }
         if (off_time > 0) {
-            gpiod_line_set_value(m->pwm_line, 0);
+            gpiod_line_request_set_value(motor_request, m->offset, GPIOD_LINE_VALUE_INACTIVE);
             usleep(off_time);
         }
     }
-
-    gpiod_line_set_value(m->pwm_line, 0);
+    gpiod_line_request_set_value(motor_request, m->offset, GPIOD_LINE_VALUE_INACTIVE);
     return NULL;
 }
 
-static robot_status_t pwm_start(motor_pwm_t *m, struct gpiod_line *line, uint8_t duty)
-{
-    m->pwm_line   = line;
-    m->duty_cycle = duty;
-    m->running    = 1;
+static robot_status_t motors_init(void) {
+    if (motor_request) return ROBOT_OK;
 
-    if (pthread_create(&m->thread, NULL, pwm_thread, m) != 0) {
-        fprintf(stderr, "motors: fallo al crear hilo PWM\n");
-        return ROBOT_ERR_HW;
-    }
+    chip = gpiod_chip_open(GPIO_DEVICE);
+    if (!chip) return ROBOT_ERR_HW;
 
-    return ROBOT_OK;
-}
+    unsigned int all_offsets[] = {MOTOR_L_IN1, MOTOR_L_IN2, MOTOR_R_IN1, MOTOR_R_IN2, MOTOR_L_PWM, MOTOR_R_PWM};
+    
+    struct gpiod_line_settings *settings = gpiod_line_settings_new();
+    gpiod_line_settings_set_direction(settings, GPIOD_LINE_DIRECTION_OUTPUT);
 
-static void pwm_stop(motor_pwm_t *m)
-{
-    m->running = 0;
-    pthread_join(m->thread, NULL);
-}
+    struct gpiod_line_config *line_cfg = gpiod_line_config_new();
+    gpiod_line_config_add_line_settings(line_cfg, all_offsets, 6, settings);
 
-static robot_status_t motors_init(void)
-{
-    chip = gpiod_chip_open_by_name(GPIO_CHIP);
-    if (!chip) {
-        fprintf(stderr, "motors: no se pudo abrir %s\n", GPIO_CHIP);
-        return ROBOT_ERR_HW;
-    }
+    struct gpiod_request_config *req_cfg = gpiod_request_config_new();
+    gpiod_request_config_set_consumer(req_cfg, "robot_motors");
 
-    line_l_in1 = gpiod_chip_get_line(chip, MOTOR_L_IN1);
-    line_l_in2 = gpiod_chip_get_line(chip, MOTOR_L_IN2);
-    line_r_in1 = gpiod_chip_get_line(chip, MOTOR_R_IN1);
-    line_r_in2 = gpiod_chip_get_line(chip, MOTOR_R_IN2);
+    motor_request = gpiod_chip_request_lines(chip, req_cfg, line_cfg);
 
-    struct gpiod_line *pwm_l = gpiod_chip_get_line(chip, MOTOR_L_PWM);
-    struct gpiod_line *pwm_r = gpiod_chip_get_line(chip, MOTOR_R_PWM);
+    gpiod_line_settings_free(settings);
+    gpiod_line_config_free(line_cfg);
+    gpiod_request_config_free(req_cfg);
 
-    if (!line_l_in1 || !line_l_in2 || !line_r_in1 || !line_r_in2 || !pwm_l || !pwm_r) {
-        fprintf(stderr, "motors: fallo al obtener líneas GPIO\n");
-        return ROBOT_ERR_HW;
-    }
+    if (!motor_request) return ROBOT_ERR_HW;
 
-    gpiod_line_request_output(line_l_in1, "robot", 0);
-    gpiod_line_request_output(line_l_in2, "robot", 0);
-    gpiod_line_request_output(line_r_in1, "robot", 0);
-    gpiod_line_request_output(line_r_in2, "robot", 0);
-    gpiod_line_request_output(pwm_l,      "robot", 0);
-    gpiod_line_request_output(pwm_r,      "robot", 0);
+    pwm_left.offset = MOTOR_L_PWM;
+    pwm_left.running = 1;
+    pwm_right.offset = MOTOR_R_PWM;
+    pwm_right.running = 1;
 
-    pwm_start(&pwm_left,  pwm_l, 0);
-    pwm_start(&pwm_right, pwm_r, 0);
+    pthread_create(&pwm_left.thread, NULL, pwm_thread, &pwm_left);
+    pthread_create(&pwm_right.thread, NULL, pwm_thread, &pwm_right);
 
     return ROBOT_OK;
 }
 
-static void motors_set_direction(int l_in1, int l_in2, int r_in1, int r_in2)
-{
-    gpiod_line_set_value(line_l_in1, l_in1);
-    gpiod_line_set_value(line_l_in2, l_in2);
-    gpiod_line_set_value(line_r_in1, r_in1);
-    gpiod_line_set_value(line_r_in2, r_in2);
-}
+robot_status_t robot_move(robot_dir_t dir, uint8_t speed) {
+    if (motors_init() != ROBOT_OK) return ROBOT_ERR_HW;
 
-robot_status_t robot_move(robot_dir_t dir, uint8_t speed)
-{
-    if (!chip) {
-        if (motors_init() != ROBOT_OK)
-            return ROBOT_ERR_HW;
-    }
+    pwm_left.duty_cycle = (speed > 100) ? 100 : speed;
+    pwm_right.duty_cycle = pwm_left.duty_cycle;
 
-    if (speed > 100) speed = 100;
-
-    // Actualizar duty cycle de ambos motores
-    pwm_left.duty_cycle  = speed;
-    pwm_right.duty_cycle = speed;
-
+    enum gpiod_line_value vals[4]; 
     switch (dir) {
-        case DIR_FORWARD:
-            motors_set_direction(1, 0, 1, 0);
-            break;
-        case DIR_BACKWARD:
-            motors_set_direction(0, 1, 0, 1);
-            break;
-        case DIR_LEFT:
-            // Motor derecho adelante, izquierdo atrás
-            motors_set_direction(0, 1, 1, 0);
-            break;
-        case DIR_RIGHT:
-            // Motor izquierdo adelante, derecho atrás
-            motors_set_direction(1, 0, 0, 1);
-            break;
-        case DIR_STOP:
-            motors_set_direction(0, 0, 0, 0);
-            pwm_left.duty_cycle  = 0;
-            pwm_right.duty_cycle = 0;
-            break;
-        default:
-            return ROBOT_ERR_ARG;
+        case DIR_FORWARD:  vals[0]=1; vals[1]=0; vals[2]=1; vals[3]=0; break;
+        case DIR_BACKWARD: vals[0]=0; vals[1]=1; vals[2]=0; vals[3]=1; break;
+        case DIR_LEFT:     vals[0]=0; vals[1]=1; vals[2]=1; vals[3]=0; break;
+        case DIR_RIGHT:    vals[0]=1; vals[1]=0; vals[2]=0; vals[3]=1; break;
+        case DIR_STOP:     vals[0]=0; vals[1]=0; vals[2]=0; vals[3]=0; 
+                           pwm_left.duty_cycle=0; pwm_right.duty_cycle=0; break;
+        default: return ROBOT_ERR_ARG;
     }
 
+    unsigned int drv_offsets[] = {MOTOR_L_IN1, MOTOR_L_IN2, MOTOR_R_IN1, MOTOR_R_IN2};
+    gpiod_line_request_set_values_subset(motor_request, 4, drv_offsets, vals);
+    
     return ROBOT_OK;
 }
 
-robot_status_t robot_stop(void)
-{
+/* --- LAS FUNCIONES QUE FALTABAN --- */
+
+robot_status_t robot_stop(void) {
     return robot_move(DIR_STOP, 0);
 }
-
-// Calibración inicial TODO: (ajustar con voltímetro y luego en piso)
-#define MS_PER_90_DEG 850 
 
 robot_status_t robot_rotate(robot_dir_t dir, float degrees) {
     if (dir != DIR_LEFT && dir != DIR_RIGHT) return ROBOT_ERR_ARG;
     
-    // Calculamos tiempo según los grados
     uint32_t duration_ms = (uint32_t)((degrees / 90.0f) * MS_PER_90_DEG);
     
-    // Girar sobre su eje: un motor adelante, el otro atrás
-    robot_move(dir, 60); 
-    
+    robot_move(dir, 60); // Velocidad constante para giro
     usleep(duration_ms * 1000);
-    
     robot_stop();
+    
     return ROBOT_OK;
 }

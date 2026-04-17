@@ -2,127 +2,81 @@
 #include <gpiod.h>
 #include "librobot.h"
 #include <stdio.h>
-#include <stdlib.h>
 #include <time.h>
-#include <stdint.h>
-#include <sys/types.h>
 
-// Chip GPIO de la RPi4
-#define GPIO_CHIP        "gpiochip0"
-
-// Pines del sensor frontal HC-SR04
+#define GPIO_DEVICE "/dev/gpiochip0"
 #define SENSOR_FRONT_TRIG  5
 #define SENSOR_FRONT_ECHO  6
-
-// Pines del sensor lateral HC-SR04
 #define SENSOR_LEFT_TRIG   19
 #define SENSOR_LEFT_ECHO   26
 
-// Distancia máxima válida en cm
-#define MAX_DISTANCE_CM    400.0f
+static struct gpiod_chip *chip = NULL;
+static struct gpiod_line_request *sensor_request = NULL;
 
-// Timeout de espera del echo en microsegundos (30ms)
-#define ECHO_TIMEOUT_US    30000
+static robot_status_t sensors_init(void) {
+    if (sensor_request) return ROBOT_OK;
 
-static struct gpiod_chip *chip            = NULL;
-static struct gpiod_line *front_trig_line = NULL;
-static struct gpiod_line *front_echo_line = NULL;
-static struct gpiod_line *left_trig_line  = NULL;
-static struct gpiod_line *left_echo_line  = NULL;
+    chip = gpiod_chip_open(GPIO_DEVICE);
+    if (!chip) return ROBOT_ERR_HW;
 
-static robot_status_t sensors_init(void)
-{
-    chip = gpiod_chip_open_by_name(GPIO_CHIP);
-    if (!chip) {
-        fprintf(stderr, "sensors: no se pudo abrir %s\n", GPIO_CHIP);
-        return ROBOT_ERR_HW;
-    }
+    struct gpiod_line_config *line_cfg = gpiod_line_config_new();
+    
+    // Configuración para Triggers (Salida)
+    struct gpiod_line_settings *out_settings = gpiod_line_settings_new();
+    gpiod_line_settings_set_direction(out_settings, GPIOD_LINE_DIRECTION_OUTPUT);
+    unsigned int trigs[] = {SENSOR_FRONT_TRIG, SENSOR_LEFT_TRIG};
+    gpiod_line_config_add_line_settings(line_cfg, trigs, 2, out_settings);
 
-    front_trig_line = gpiod_chip_get_line(chip, SENSOR_FRONT_TRIG);
-    front_echo_line = gpiod_chip_get_line(chip, SENSOR_FRONT_ECHO);
-    left_trig_line  = gpiod_chip_get_line(chip, SENSOR_LEFT_TRIG);
-    left_echo_line  = gpiod_chip_get_line(chip, SENSOR_LEFT_ECHO);
+    // Configuración para Echoes (Entrada)
+    struct gpiod_line_settings *in_settings = gpiod_line_settings_new();
+    gpiod_line_settings_set_direction(in_settings, GPIOD_LINE_DIRECTION_INPUT);
+    unsigned int echoes[] = {SENSOR_FRONT_ECHO, SENSOR_LEFT_ECHO};
+    gpiod_line_config_add_line_settings(line_cfg, echoes, 2, in_settings);
 
-    if (!front_trig_line || !front_echo_line || !left_trig_line || !left_echo_line) {
-        fprintf(stderr, "sensors: fallo al obtener líneas GPIO\n");
-        return ROBOT_ERR_HW;
-    }
+    struct gpiod_request_config *req_cfg = gpiod_request_config_new();
+    gpiod_request_config_set_consumer(req_cfg, "robot_sensors");
 
-    gpiod_line_request_output(front_trig_line, "robot", 0);
-    gpiod_line_request_input(front_echo_line,  "robot");
-    gpiod_line_request_output(left_trig_line,  "robot", 0);
-    gpiod_line_request_input(left_echo_line,   "robot");
+    sensor_request = gpiod_chip_request_lines(chip, req_cfg, line_cfg);
 
-    return ROBOT_OK;
+    gpiod_line_settings_free(out_settings);
+    gpiod_line_settings_free(in_settings);
+    gpiod_line_config_free(line_cfg);
+    gpiod_request_config_free(req_cfg);
+
+    return sensor_request ? ROBOT_OK : ROBOT_ERR_HW;
 }
 
-// Mide la distancia en cm de un sensor HC-SR04
-static float measure_distance(struct gpiod_line *trig, struct gpiod_line *echo)
-{
+static float measure_distance(unsigned int trig, unsigned int echo) {
     struct timespec start, end;
-    uint32_t elapsed_us = 0;
-
-    // Enviar pulso de 10us en el trigger
-    gpiod_line_set_value(trig, 1);
-    struct timespec pulse = {0, 10000}; // 10 microsegundos
+    // Pulso Trigger
+    gpiod_line_request_set_value(sensor_request, trig, GPIOD_LINE_VALUE_ACTIVE);
+    struct timespec pulse = {0, 10000};
     nanosleep(&pulse, NULL);
-    gpiod_line_set_value(trig, 0);
+    gpiod_line_request_set_value(sensor_request, trig, GPIOD_LINE_VALUE_INACTIVE);
 
-    // Esperar flanco de subida del echo
-    uint32_t timeout = ECHO_TIMEOUT_US;
-    while (gpiod_line_get_value(echo) == 0 && timeout--) {
-        struct timespec wait = {0, 1000}; // 1 microsegundo
-        nanosleep(&wait, NULL);
-    }
-    if (timeout == 0) {
-        fprintf(stderr, "sensors: timeout esperando echo (subida)\n");
-        return -1.0f;
-    }
-    clock_gettime(CLOCK_MONOTONIC, &start);
-
-    // Esperar flanco de bajada del echo
-    timeout = ECHO_TIMEOUT_US;
-    while (gpiod_line_get_value(echo) == 1 && timeout--) {
+    // Esperar flanco subida
+    int timeout = 30000;
+    while (gpiod_line_request_get_value(sensor_request, echo) == GPIOD_LINE_VALUE_INACTIVE && timeout--) {
         struct timespec wait = {0, 1000};
         nanosleep(&wait, NULL);
     }
-    if (timeout == 0) {
-        fprintf(stderr, "sensors: timeout esperando echo (bajada)\n");
-        return -1.0f;
+    clock_gettime(CLOCK_MONOTONIC, &start);
+
+    // Esperar flanco bajada
+    timeout = 30000;
+    while (gpiod_line_request_get_value(sensor_request, echo) == GPIOD_LINE_VALUE_ACTIVE && timeout--) {
+        struct timespec wait = {0, 1000};
+        nanosleep(&wait, NULL);
     }
     clock_gettime(CLOCK_MONOTONIC, &end);
 
-    // Calcular distancia
-    // elapsed en microsegundos
-    elapsed_us = (end.tv_sec  - start.tv_sec)  * 1000000 +
-                 (end.tv_nsec - start.tv_nsec) / 1000;
-
-    // Distancia = (tiempo * velocidad del sonido) / 2
-    // Velocidad del sonido = 0.0343 cm/us
-    float distance_cm = (elapsed_us * 0.0343f) / 2.0f;
-
-    if (distance_cm > MAX_DISTANCE_CM) {
-        return MAX_DISTANCE_CM;
-    }
-
-    return distance_cm;
+    double elapsed_us = (end.tv_sec - start.tv_sec) * 1e6 + (end.tv_nsec - start.tv_nsec) / 1e3;
+    return (float)(elapsed_us * 0.0343) / 2.0f;
 }
 
-robot_status_t robot_sensor_read(robot_sensor_data_t *data)
-{
-    if (!data) return ROBOT_ERR_ARG;
-
-    if (!chip) {
-        if (sensors_init() != ROBOT_OK)
-            return ROBOT_ERR_HW;
-    }
-
-    data->front_cm = measure_distance(front_trig_line, front_echo_line);
-    data->left_cm  = measure_distance(left_trig_line,  left_echo_line);
-
-    if (data->front_cm < 0 || data->left_cm < 0) {
-        return ROBOT_ERR_HW;
-    }
-
+robot_status_t robot_sensor_read(robot_sensor_data_t *data) {
+    if (sensors_init() != ROBOT_OK) return ROBOT_ERR_HW;
+    data->front_cm = measure_distance(SENSOR_FRONT_TRIG, SENSOR_FRONT_ECHO);
+    data->left_cm  = measure_distance(SENSOR_LEFT_TRIG, SENSOR_LEFT_ECHO);
     return ROBOT_OK;
 }
