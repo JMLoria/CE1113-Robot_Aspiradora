@@ -13,6 +13,9 @@ let isConnected = false;
 // Estados de reproduccion
 let isPlaying = false;
 
+// Lista que viene del servidor
+let songs = [];
+
 // Conectar al servidor al cargar la pagina
 window.onload = connect;
 
@@ -42,6 +45,10 @@ function connect() {
             updateAudioUI(data.audio);
         }
 
+        if (data.status) {
+            updateUI(data.status);
+        }
+
         socket.onclose = () => {
             isConnected = false;
             statusDot.className = "status-dot offline";
@@ -53,12 +60,47 @@ function connect() {
     };
 }
 
+function updateUI(status) {
+    // Actualizar LEDs visuales
+    document.getElementById('led-system').className = status.system ? 'led led-blue' : 'led led-off';
+    document.getElementById('led-manual').className = status.manual ? 'led led-green' : 'led led-off';
+    document.getElementById('led-auto').className = status.autonomous ? 'led led-green' : 'led led-off';
+    document.getElementById('led-obstacle').className = status.obstacle ? 'led led-red' : 'led led-off';
+
+    // Cambiar color de botones de modo
+    const btnManual = document.getElementById('btn-manual');
+    const btnAuto = document.getElementById('btn-auto');
+
+    if (status.autonomous) {
+        btnAuto.style.backgroundColor = '#2ecc71';
+        btnManual.style.backgroundColor = '#666';
+        disableManualControls(true);
+    } else {
+        btnAuto.style.backgroundColor = '#666';
+        btnManual.style.backgroundColor = '#2ecc71';
+        disableManualControls(false);
+    }
+}
+
+function disableManualControls(disabled) {
+    // Bloquea los botones de las flechas
+    const buttons = document.querySelectorAll('.control-btn');
+    buttons.forEach(btn => {
+        btn.disabled = disabled;
+        btn.style.opacity = disabled ? "0.5" : "1.0";
+        btn.style.cursor = disabled ? "not-allowed" : "pointer";
+        btn.style.pointerEvents = disabled ? "none" : "auto";
+    });
+}
+
 // --- LOGICA DE INTERFAZ DE AUDIO ---
 function updateAudioUI(audioData) {
     const trackInfo = document.getElementById('track-info');
     const timeCurrent = document.getElementById('time-current');
     const timeTotal = document.getElementById('time-total');
     const progressBar = document.getElementById('progress-bar');
+    const volumeBar = document.getElementById('volume-bar');
+    const volumeText = document.getElementById('volume-text');
 
     // Actualizar nombre de la cancion
     if (trackInfo) trackInfo.innerText = audioData.track || "Sin reproducción";
@@ -71,6 +113,13 @@ function updateAudioUI(audioData) {
     if (progressBar && audioData.total > 0) {
         const percentage = (audioData.current / audioData.total) * 100
         progressBar.style.width = `${percentage}%`;
+    }
+
+    // Actualizar visualizacion de volumen
+    if (volumeBar && audioData.volume !== undefined) {
+        volumeBar.style.width = `${audioData.volume}%`;
+        if(volumeText) volumeText.innerText = `${audioData.volume}%`;
+
     }
 }
 
@@ -105,6 +154,42 @@ function togglePlay() {
     } else {
         sendAction('audio/pause'); 
         document.getElementById('btn-play-pause').innerText = "⏸";
+    }
+}
+
+function togglePlaylist() {
+    const menu = document.getElementById('playlist-menu');
+    const listContainer = document.getElementById('songs-list');
+
+    if (menu.style.display === 'none' || menu.style.display === '') {
+        fetch('/api/audio/playlist')
+            .then(response => { 
+                return response.json();
+            })
+            .then(songs => {
+                if (!Array.isArray(songs)) {
+                    console.error("La respuesta no es un arreglo:", songs);
+                    return;
+                }
+                listContainer.innerHTML = ''; // Limpiar lista previa
+                songs.forEach(song => {
+                    const item = document.createElement('div');
+                    item.innerText = song;
+                    item.style.padding = "8px";
+                    item.style.cursor = "pointer";
+                    item.style.borderBottom = "1px solid #333";
+                    item.onmouseover = () => item.style.background = "#333";
+                    item.onmouseout = () => item.style.background = "transparent";
+                    item.onclick = () => {
+                        fetch(`/api/audio/play_specific?name=${encodeURIComponent(song)}`, { method: 'POST' });
+                        menu.style.display = 'none';
+                    };
+                    listContainer.appendChild(item);
+                });
+                menu.style.display = 'block';
+            });
+    } else {
+        menu.style.display = 'none';
     }
 }
 

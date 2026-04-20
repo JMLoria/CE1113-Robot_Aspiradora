@@ -19,6 +19,8 @@ public:
     void nextSong();
     void prevSong();
 
+    void playSpecific(const std::string& songName);
+
     // Controles de tiempo
     void forward5s();
     void back5s();
@@ -32,6 +34,8 @@ public:
     int getCurrentTime();
     int getTotalTime();
     std::string getCurrentTrackName();
+    int getVolume() const;
+    std::vector<std::string> getPlaylist() const;
 
 private:
     std::string data_path = "../../../data/";

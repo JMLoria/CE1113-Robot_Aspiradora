@@ -5,7 +5,9 @@
 #include <sstream>
 #include <algorithm>
 #include <chrono>
+#include <filesystem>
 
+namespace fs = std::filesystem;
 
 AudioManager::AudioManager() {
     loadPlaylist();
@@ -56,13 +58,29 @@ void AudioManager::initProcess() {
 }
 
 void AudioManager::loadPlaylist() {
-    playlist = {
-        "Blacklight [Ado] - 2022",
-        "Odo [Ado] - 2021",
-        "Show [Ado] - 2023",
-        "Usseewa [Ado] - 2020",
-        "Vivarium [Ado] - 2026"
-    };
+    playlist.clear();
+
+    std::string music_dir = data_path + "musics/";
+
+    try {
+        if (fs::exists(music_dir) && fs::is_directory(music_dir)) {
+            for (const auto& entry : fs::directory_iterator(music_dir)) {
+                // Verificar que sea archivo y que termine en .mp3
+                if (entry.is_regular_file() && entry.path().extension() == ".mp3") {
+                    // Guarda solo el nombre del archivo sin la extension .mp3
+                    playlist.push_back(entry.path().stem().string());
+                }
+            }
+        } else {
+            std::cerr << "[AUDIO] Error: La carpeta de musica no existe en " << music_dir << std::endl;
+        }
+    } catch (const fs::filesystem_error& e) {
+        std::cerr << "[AUDIO] Error de sistema de archivos" << e.what() << std::endl; 
+    }
+
+    std::sort(playlist.begin(), playlist.end());
+
+    std::cout << "[AUDIO] Playlist cargada: " << playlist.size() << " canciones encontradas" << std::endl; 
 }
 
 void AudioManager::sendCommand(const std::string& cmd) {
@@ -78,7 +96,7 @@ void AudioManager::sendCommand(const std::string& cmd) {
 void AudioManager::play(int index) {
     if (index == -1 && is_paused) {
         pause();
-         return;
+        return;
     } 
 
     if (index != -1) current_track_index = index % playlist.size();
@@ -88,6 +106,7 @@ void AudioManager::play(int index) {
 
     std::string full_path = data_path + "musics/" + playlist[current_track_index] + ".mp3";
     sendCommand("LOAD " + full_path);
+    sendCommand("VOLUME " + std::to_string(volume));
     std::cout << "[AUDIO] Reproduciendo: " << playlist[current_track_index] << "." << std::endl;
 }
 
@@ -119,6 +138,20 @@ void AudioManager::prevSong() {
     is_paused = false; 
     current_track_index = (current_track_index - 1 + playlist.size()) % playlist.size();
     play(); 
+}
+
+void AudioManager::playSpecific(const std::string& songName) {
+    for (size_t i = 0; i < playlist.size(); i++) {
+        if (playlist[i] == songName) {
+            pause();
+            std::cout << "[AUDIO] Selección manual: " << songName << " (Índice: " << i << ")" << std::endl;
+
+            current_track_index = i;
+
+            play(i);
+            return;
+        }
+    }
 }
 
 void AudioManager::forward5s() {
@@ -159,3 +192,12 @@ int AudioManager::getTotalTime() {
 std::string AudioManager::getCurrentTrackName() {
     return playlist[current_track_index];
 }
+
+int AudioManager::getVolume() const {
+    return volume.load(); 
+}
+
+std::vector<std::string> AudioManager::getPlaylist() const {
+    return playlist;
+}
+
