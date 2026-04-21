@@ -1,7 +1,7 @@
 #include "../include/crow_all.h"
 #include "../include/audio_manager.h"
 #include "../include/mapping.h"
-#include "../os/include/librobot.h"
+#include "librobot.h"
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -105,9 +105,9 @@ int main() {
             int next_x = cur_x;
             int next_y = cur_y;
             if (dir == "forward") {
-                robot_move(DIR_FORWARD, 1.0f);
+                robot_move(DIR_FORWARD, 80);
             } else {
-                robot_move(DIR_BACKWARD, 1.0f);
+                robot_move(DIR_BACKWARD, 80);
             }
 
             // Logica de movimiento segun orientacion
@@ -316,35 +316,29 @@ int main() {
     .onopen([&](crow::websocket::connection& conn) {
         std::cout << "[WS] Cliente conectado. Sincronizando..." << std::endl;
     })
-    .onmessage([&](crow::websocket::connection& conn, const std::string& data, bool is_binary) {
+.onmessage([&](crow::websocket::connection& conn, const std::string& data, bool is_binary) {
         if (data == "update") {
-            // Creamos un objeto JSON de respuesta
             crow::json::wvalue response;
             
-
-            // 1. Datos del Mapa (Parseamos el JSON que genera el mapper)
-            //----------------OBSTACULOS---------------- mapper.addObstacle(5, 5); // Ejemplo de agregar un obstáculo
+            // --- 1. Sincronización de Sensores y Mapeo ---
             robot_sensor_data_t s_data;
-
             if (robot_sensor_read(&s_data) == ROBOT_OK) {
-                // Si hay algo a menos de 20cm, marcamos obstáculo
                 if (s_data.front_cm < 20.0f) {
                     obstacle_alert = true;
-                    robot_led_set(LED_OBSTACLE, LED_ON);
-                
-                    // Calculamos dónde está el obstáculo en la grilla
+                    
                     int obs_x = cur_x, obs_y = cur_y;
                     if (robot_angle == 0) obs_y--;
                     else if (robot_angle == 90) obs_x++;
-                    // ... (completar para otros ángulos)
-                
+                    else if (robot_angle == 180) obs_y++;
+                    else if (robot_angle == 270) obs_x--;
+                    
                     mapper.addObstacle(obs_x, obs_y);
                 } else {
                     obstacle_alert = false;
-                    robot_led_set(LED_OBSTACLE, LED_OFF);
                 }
             }
-}
+
+            // --- 2. Preparación de Respuesta JSON ---
             auto map_data = crow::json::load(mapper.getMapAsJson());
             response["map"]["grid"] = map_data["grid"];
             response["map"]["robot"] = map_data["robot"];
@@ -376,13 +370,13 @@ int main() {
                 robot_led_set(LED_MANUAL, LED_ON);
             }
 
-            // LED de Obstáculo (Se enciende si hay alerta)
+             // LED de Obstáculo (Se enciende si hay alerta)
             robot_led_set(LED_OBSTACLE, obstacle_alert ? LED_ON : LED_OFF);
             
             // Enviamos todo el paquete al navegador
             conn.send_text(response.dump());
-        }
-    });
+        } 
+    }); 
 
     std::cout << "\n==========================================" << std::endl;
     std::cout << "SERVIDOR INICADO" << std::endl;
