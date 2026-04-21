@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="es">    
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CE1113 - Robot Aspiradora G6 - Panel de Control</title>
+    <link rel="stylesheet" href="style.css"> <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #1a1a1a; color: #e0e0e0; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        .container { display: flex; gap: 30px; flex-wrap: wrap; justify-content: center; }
+        #mapCanvas { background: #000; border: 3px solid #333; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .panel { background: #2a2a2a; padding: 20px; border-radius: 10px; width: 300px; }
+        .controls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 20px; }
+        button { padding: 15px; border: none; border-radius: 5px; background: #3d3d3d; color: white; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        button:hover { background: #555; }
+        button.active { background: #2ecc71; }
+        .status-dot { height: 10px; width: 10px; border: radius 50%; display: inline-block; margin-right: 5px; }
+        .online { background-color: #2ecc71; }
+        .offline { background-color: #e74c3c; }
+    </style>
+</head>
+<body>
+    <h1>Panel de Control</h1>
+    <div id="status"><span class="status-dot offline"></span>Desconectado</div>
+
+    <div class="container">
+        <div>
+            <h3>Mapa de Navegación 2D</h3>
+            <canvas id="mapCanvas" width="400" height="400"></canvas>
+        </div>
+
+        <div class="panel">
+            <h3>Estado del Sistema (LEDs)</h3>
+            <div class="led-container">
+                <div id="led-system" class="led led-blue"></div> <span>Sistema</span>
+                <div id="led-manual" class="led led-off"></div> <span>Manual</span>
+                <div id="led-auto" class="led led-off"></div> <span>Autónomo</span>
+                <div id="led-obstacle" class="led led-off"></div> <span>Alerta</span>
+            </div>
+            <h3>Modos de Operación</h3>
+            <div style="display: flex; gap: 5px; margin-bottom:20px;">
+                <button id="btn-auto" onclick="setMode('auto')" id="btn-auto">Autónomo</button>
+                <button id="btn-manual" onclick="setMode('manual')" id="btn-manual" class="active">Manual</button>
+            </div>
+
+            <h3>Control Remoto</h3>
+            <div class="controls">
+                <div></div>
+                <button class="control-btn" onclick="move('forward')">▲</button>
+                <div></div>
+
+                <button class="control-btn" onclick="move('left')">◄</button>
+                <button class="control-btn" onclick="move('stop')" style="background: #c0392b;">⏹</button>
+                <button class="control-btn" onclick="move('right')">►</button>
+
+                <div></div>
+                <button class="control-btn" onclick="move('backward')">▼</button>
+                <div></div>
+            </div>
+
+            <h3 style="margin-top: 20px;">
+                Reproductor MP3
+                <button onclick="togglePlaylist()" style="background: none; border: none; color: #00f2ff; cursor: pointer; font-size: 1em;" title="Lista de reproducción">♫</button>
+            </h3>
+
+            <div id="playlist-menu" style="display:none; background: #1e1e1e; border: 1px solid #00f2ff; border-radius: 8px; padding: 10px; max-height: 200px; overflow-y: auto;">
+                <div id="songs-list" style="display: flex; flex-direction: column; gap: 5px;"></div>
+            </div>
+            
+            <div class="panel-audio" style="background: #1e1e1e; padding: 15px; border-radius: 8px; border: 1px solid #333;">
+                <div id ="track-info" style="font-size: 0.85em; color: #00f2ff; margin-bottom: 10px; text-align: center;">
+                    Esperando reproducción...
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                    <span id="time-current" style="font-size: 0.75em; width: 35px;">0:00</span>
+                    <div style="flex-grow: 1; background: #333; height: 6px; border-radius: 3px; overflow: hidden;">
+                        <div id="progress-bar" style="width: 0%; height: 100%; background: #00f2ff; transition: width 0.5s linear;"></div>
+                    </div>
+                    <span id="time-total" style="font-size: 0.75em; width:35px">0:00</span>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px">
+                    <button onclick="prevSong()" title="Anterior">⏮</button>
+                    <button onclick="togglePlay()" id="btn-play-pause" style="background: #2980b9" title="Play/Pause">▶</button>
+                    <button onclick="nextSong()" title="Siguiente">⏭</button>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 10px;">
+                    <button onclick="skipTime('back')" style="font-size: 0.8em;">◄◄</button>
+                    <button onclick="skipTime('forward')" style="font-size: 0.8em;">►►</button>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                    <span style="font-size: 0.7em; color: #888;">VOL</span>
+                    <div style="flex-grow: 1; background: #333; height: 4px; border-radius: 2px; overflow: hidden;">
+                        <div id="volume-bar" style="width: 50%; height: 100%; background: #2ecc71; transition: width 0.3s ease;"></div>
+                    </div>
+                    <span id="volume-text" style="font-size: 0.7em; color: #888; width: 30px;">50%</span>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+                    <button onclick="changeVolume('down')" style="flex: 1;">🔉</button>
+                    <button onclick="changeVolume('up')" style="flex: 1;">🔊</button>
+                </div>
+
+                <button onclick="stopMusic()" style="background: #c0392b; width: 100%; margin-top: 10px;">⏹</button>
+
+            </div>
+
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <link rel="stylesheet" href="style.css">
+</body>
+</html>

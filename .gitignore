@@ -56,7 +56,9 @@ __pycache__/
 # CMake 
 CMakeCache.txt
 CMakeFiles/
+CMakeScripts/
 cmake-build-*/
+cmake_install.cmake
 Makefile
 install_manifest.txt
 
@@ -67,3 +69,15 @@ src/os/yocto/build-rpi/bitbake-cookerdaemon.log
 src/os/yocto/build-rpi/conf/conf-notes.txt
 src/os/yocto/build-rpi/conf/conf-summary.txt
 src/os/yocto/build-rpi/conf/templateconf.cfg
+# --- Compilación y Binarios ---
+# Ignora todas las carpetas build en cualquier subdirectorio
+build/
+bin/
+obj/
+
+# --- Archivos del Sistema y Editores ---
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
