@@ -1,7 +1,7 @@
 #include "../include/crow_all.h"
 #include "../include/audio_manager.h"
 #include "../include/mapping.h"
-#include "../include/biblioteca_robot.h"
+#include "../os/include/librobot.h"
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -10,6 +10,7 @@
 
 
 int main() {
+    robot_init();
     crow::SimpleApp app;
     AudioManager audio; 
     MappingManager mapper(20, 20);
@@ -76,6 +77,7 @@ int main() {
         return crow::response(404);
     });
 
+    //---------------------SET_MODE-----------------------
     CROW_ROUTE(app, "/api/mode/<string>")
     ([&](const crow::request& req, std::string mode) {
         is_autonomous = (mode == "auto"); 
@@ -93,13 +95,20 @@ int main() {
         if (dir == "left") {
             robot_angle = (robot_angle - 90 + 360) % 360;
             std::cout << "[MOTOR] Rotando Izquierda. Nuevo angulo: " << robot_angle << std::endl;
+            robot_rotate(DIR_LEFT, 90.0f);
         } else if (dir == "right") {
             robot_angle = (robot_angle + 90) % 360;
             std::cout << "[MOTOR] Rotando Derecha. Nuevo angulo: " << robot_angle << std::endl;
+            robot_rotate(DIR_RIGHT, 90.0f);
         } else if (dir == "forward" || dir == "backward") {
             int step = (dir == "forward") ? 1 : -1;
             int next_x = cur_x;
             int next_y = cur_y;
+            if (dir == "forward") {
+                robot_move(DIR_FORWARD, 1.0f);
+            } else {
+                robot_move(DIR_BACKWARD, 1.0f);
+            }
 
             // Logica de movimiento segun orientacion
             if (robot_angle == 0)   next_y -= step;  // Norte
@@ -290,7 +299,7 @@ int main() {
             int obsY = disY(gen);
 
             if (obsX != cur_x || obsY != cur_y) {
-                mapper.addObstacle(obsX, obsY);
+                mapper.addObstacle(obsX, obsY);  //EJEMPLO--------------------------------------------------------------------------------
             }
         }
 
@@ -312,11 +321,36 @@ int main() {
             // Creamos un objeto JSON de respuesta
             crow::json::wvalue response;
             
+
             // 1. Datos del Mapa (Parseamos el JSON que genera el mapper)
+            //----------------OBSTACULOS---------------- mapper.addObstacle(5, 5); // Ejemplo de agregar un obstáculo
+            robot_sensor_data_t s_data;
+
+            if (robot_sensor_read(&s_data) == ROBOT_OK) {
+                // Si hay algo a menos de 20cm, marcamos obstáculo
+                if (s_data.front_cm < 20.0f) {
+                    obstacle_alert = true;
+                    robot_led_set(LED_OBSTACLE, LED_ON);
+                
+                    // Calculamos dónde está el obstáculo en la grilla
+                    int obs_x = cur_x, obs_y = cur_y;
+                    if (robot_angle == 0) obs_y--;
+                    else if (robot_angle == 90) obs_x++;
+                    // ... (completar para otros ángulos)
+                
+                    mapper.addObstacle(obs_x, obs_y);
+                } else {
+                    obstacle_alert = false;
+                    robot_led_set(LED_OBSTACLE, LED_OFF);
+                }
+            }
+}
             auto map_data = crow::json::load(mapper.getMapAsJson());
             response["map"]["grid"] = map_data["grid"];
             response["map"]["robot"] = map_data["robot"];
             response["map"]["angle"] = robot_angle;
+
+        
 
             // 2. Datos de Audio Real (Extraídos del hilo de mpg123)
             response["audio"]["track"] = audio.getCurrentTrackName();
@@ -329,6 +363,21 @@ int main() {
             response["status"]["manual"] = !is_autonomous;
             response["status"]["obstacle"] = obstacle_alert;
             response["status"]["system"] = system_on;
+
+            // LED de Sistema/Power
+            robot_led_set(LED_POWER, system_on ? LED_ON : LED_OFF);
+
+            // LEDs de Modo (Excluyentes: o es Auto o es Manual)
+            if (is_autonomous) {
+                robot_led_set(LED_AUTO, LED_ON);
+                robot_led_set(LED_MANUAL, LED_OFF);
+            } else {
+                robot_led_set(LED_AUTO, LED_OFF);
+                robot_led_set(LED_MANUAL, LED_ON);
+            }
+
+            // LED de Obstáculo (Se enciende si hay alerta)
+            robot_led_set(LED_OBSTACLE, obstacle_alert ? LED_ON : LED_OFF);
             
             // Enviamos todo el paquete al navegador
             conn.send_text(response.dump());
@@ -341,5 +390,8 @@ int main() {
     std::cout << "==========================================\n" << std::endl;
 
     app.port(8080).multithreaded().run();
+
+    std::cout << "Apagando hardware..." << std::endl;
+    robot_shutdown();
     return 0;
 }
