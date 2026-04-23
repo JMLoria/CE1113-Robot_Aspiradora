@@ -81,3 +81,6 @@ obj/
 *.swp
 *~
 .DS_Store
+
+# --- Archivos de test personal para verificar funcionalidad ---
+src/int/test/
