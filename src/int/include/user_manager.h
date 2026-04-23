@@ -35,7 +35,7 @@ public:
     long long getRemainingLockTime(const std::string& username);
 
     // Seguridad y Limpieza
-    std::string sanitizeInput(std::string input);
+    bool isValidUsername(const std::string& username);
     void resetAttempts(const std::string& username);
 
 private:
@@ -51,7 +51,7 @@ private:
 
     // Helper para anonimizacion
     std::string getIdentifierHash(const std::string& username) {
-        return SHA256::hash(sanitizeInput(username));
+        return SHA256::hash(username);
     }
 };
 

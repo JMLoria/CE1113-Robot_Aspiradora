@@ -15,10 +15,11 @@ UserManager::~UserManager() {
     saveUsers();
 }
 
-std::string UserManager::sanitizeInput(std::string input) {
-    // Solo permite letras y numeros [A-Za-z0-9]
-    std::regex re("[^a-zA-Z0-9]");
-    return std::regex_replace(input, re, ""); 
+bool UserManager::isValidUsername(const std::string& username) {
+    if (username.empty()) return false;
+    // Regex que busca cualquier cosa que NO sea alfanumérica
+    std::regex re("^[a-zA-Z0-9]+$");
+    return std::regex_match(username, re);
 }
 
 std::string UserManager::generateSalt(size_t length) {
@@ -79,9 +80,13 @@ void UserManager::saveUsers() {
 }
 
 bool UserManager::registerUser(const std::string& username, const std::string& password) {
+    if (!isValidUsername(username)) {
+        std::cout << "[AUTH] Registro rechazado: Caracteres inválidos en '" << username << "'" << std::endl;
+        return false; 
+    }
+
     std::string id_hash = getIdentifierHash(username);
-    
-    if (findUserByHash(id_hash)) return false; // El usuario ya existe
+    if (findUserByHash(id_hash)) return false;
 
     User newUser;
     newUser.user_id_hash = id_hash;
@@ -94,7 +99,6 @@ bool UserManager::registerUser(const std::string& username, const std::string& p
         std::lock_guard<std::mutex> lock(user_mutex);
         users.push_back(newUser);
     }
-    
     saveUsers();
     return true;
 }
