@@ -155,3 +155,15 @@ long long UserManager::getRemainingLockTime(const std::string& username) {
     
     return (remaining > 0) ? remaining : 0;
 }
+
+void UserManager::resetAttempts(const std::string& username) {
+    std::string id_hash = getIdentifierHash(username);
+    User* u = findUserByHash(id_hash);
+    
+    if (u) {
+        std::lock_guard<std::mutex> lock(user_mutex);
+        u->failed_attempts = 0;
+        u->lockout_until = 0;
+        saveUsers(); // Guardamos el cambio en el JSON
+    }
+}
