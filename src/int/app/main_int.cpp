@@ -309,10 +309,10 @@ int main() {
     })
     .onmessage([&](crow::websocket::connection& conn, const std::string& data, bool is_binary) {
         if (data == "update") {
-            // Creamos un objeto JSON de respuesta
+            // Crea un objeto JSON de respuesta
             crow::json::wvalue response;
             
-            // 1. Datos del Mapa (Parseamos el JSON que genera el mapper)
+            // 1. Datos del Mapa (Parsea el JSON que genera el mapper)
             auto map_data = crow::json::load(mapper.getMapAsJson());
             response["map"]["grid"] = map_data["grid"];
             response["map"]["robot"] = map_data["robot"];
