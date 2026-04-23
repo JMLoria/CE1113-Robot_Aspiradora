@@ -138,3 +138,20 @@ bool UserManager::isLocked(const std::string& username) {
     if (!u) return false;
     return static_cast<long long>(std::time(nullptr)) < u->lockout_until;
 }
+
+bool UserManager::userExists(const std::string& username) {
+    std::string id_hash = getIdentifierHash(username);
+    return findUserByHash(id_hash) != nullptr;
+}
+
+long long UserManager::getRemainingLockTime(const std::string& username) {
+    std::string id_hash = getIdentifierHash(username);
+    User* u = findUserByHash(id_hash);
+    
+    if (!u || u->lockout_until == 0) return 0;
+
+    long long now = static_cast<long long>(std::time(nullptr));
+    long long remaining = u->lockout_until - now;
+    
+    return (remaining > 0) ? remaining : 0;
+}
