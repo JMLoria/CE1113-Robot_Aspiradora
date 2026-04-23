@@ -10,6 +10,7 @@ set(SOURCES
     app/main_int.cpp
     app/audio_manager.cpp
     app/mapping.cpp
+    app/user_manager.cpp
 )
 
 # Crear el ejecutable

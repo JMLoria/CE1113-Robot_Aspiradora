@@ -1,6 +1,7 @@
 #include "../include/crow_all.h"
 #include "../include/audio_manager.h"
 #include "../include/mapping.h"
+#include "../include/user_manager.h"
 #include "../include/biblioteca_robot.h"
 #include <iostream>
 #include <fstream>
@@ -11,6 +12,9 @@
 
 int main() {
     crow::SimpleApp app;
+
+    UserManager auth("../../../data/r_users/users_robot.json");
+
     AudioManager audio; 
     MappingManager mapper(20, 20);
 
@@ -76,6 +80,8 @@ int main() {
         return crow::response(404);
     });
 
+    // --- ENPOINTS DE ESTADO ---
+
     CROW_ROUTE(app, "/api/mode/<string>")
     ([&](const crow::request& req, std::string mode) {
         is_autonomous = (mode == "auto"); 
@@ -85,6 +91,50 @@ int main() {
         res.set_header("Access-Control-Allow-Origin", "*"); 
         return res;
         // return crow::response(200, "Modo actualizado");
+    });
+
+    // --- ENDPOINTS DE AUTENTICACION ---
+    CROW_ROUTE(app, "/register").methods(crow::HTTPMethod::POST)    // Ruta de Registro
+    ([&auth](const crow::request& req) {
+        auto x = crow::json::load(req.body);
+        if (!x) return crow::response(400, "JSON Inválido");
+
+        std::string user = x["username"].s();
+        std::string pass = x["password"].s();
+
+        if (auth.registerUser(user, pass)) {
+            return crow::response(201, "Usuario creado exitosamente");
+        } else {
+            return crow::response(400, "Nombre de usuario no válido o ya existe");
+        }
+    });
+
+    CROW_ROUTE(app, "/login").methods(crow::HTTPMethod::POST)   // Ruta de Login
+    ([&auth](const crow::request& req) {
+        auto x = crow::json::load(req.body);
+        if (!x) return crow::response(400, "JSON Inválido");
+
+        std::string user = x["username"].s();
+        std::string pass = x["password"].s();
+
+        if (auth.authenticate(user, pass)) {
+            crow::json::wvalue res;
+            res["status"] = "success";
+            res["message"] = "Autenticación exitosa";
+            // Aquí podrías generar un token simple, por ahora usaremos éxito/fallo
+            return crow::response(200, res);
+        } else {
+            crow::json::wvalue res;
+            res["status"] = "error";
+            
+            if (auth.isLocked(user)) {
+                res["message"] = "Usuario bloqueado. Intente en: " + 
+                                 std::to_string(auth.getRemainingLockTime(user)) + "s";
+            } else {
+                res["message"] = "Credenciales incorrectas";
+            }
+            return crow::response(401, res);
+        }
     });
 
     // --- ENDPOINTS CONTROL REMOTO MANUAL ---  
