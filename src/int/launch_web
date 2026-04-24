@@ -3,17 +3,42 @@
 # Limpiar la terminal
 clear
 
-# Obtiene la ruta absoluta de la carpeta donde está el script
+# 1. Obtener la ruta donde reside este script
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+# 2. Configuración de la carpeta Web
+PORT=8080
 URL="http://localhost:8080"
+WEB_DIR="src/int/web" # Asegúrate de que esta sea la ruta a tus archivos HTML/JS
 
 echo "==========================================="
-echo "🌐 LANZANDO INTERFAZ DESDE ORIGEN LOCAL"
+echo "🌐 LANZANDO INTERFAZ DESDE: $WEB_DIR"
 echo "URL: $URL"
 echo "==========================================="
 
-# Abrir el archivo. Se usa la ruta absoluta calculada dinámicamente
+# Verificar que la carpeta existe antes de proceder
+if [ ! -d "$WEB_DIR" ]; then
+    echo "ERROR: No se encontró la carpeta $WEB_DIR"
+    exit 1
+fi
+
+cd "$WEB_DIR" || exit
+
+# 3. Iniciar el servidor local
+# Usamos & para enviarlo al fondo
+python3 -m http.server $PORT &
+SERVER_PID=$!
+
+# Dar tiempo al servidor para iniciar
+sleep 1
+
+# 4. Abrir el navegador
 if command -v xdg-open > /dev/null; then
     xdg-open "$URL"
 else
     echo "Abre manualmente: $URL"
 fi
+
+# Mantener el proceso para poder cerrarlo con Ctrl+C
+echo "Presiona CTRL+C para detener el servidor."
+wait $SERVER_PID
