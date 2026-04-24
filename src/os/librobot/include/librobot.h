@@ -90,6 +90,14 @@ robot_status_t robot_audio_get_list(char ***files, int *count);
 typedef void (*robot_obstacle_callback)(float distance);
 void robot_set_obstacle_handler(robot_obstacle_callback cb);
 
+typedef enum {
+    SENSOR_FRONT = 0,
+    SENSOR_LEFT = 1
+} robot_sensor_t;
+
+// Devuelve la distancia en centímetros, o -1.0f si falla o está fuera de rango.
+float robot_get_distance(int sensor_id);
+
 #ifdef __cplusplus
 }
 #endif
