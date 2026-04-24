@@ -1,6 +1,5 @@
 // auth.js - Gestión de Autenticación para el Robot
 
-
 const authManager = {
     // Alternar entre formularios de Login y Registro
     toggleAuth: function(isRegister) {
@@ -37,6 +36,13 @@ const authManager = {
     }
 }; 
 
+// Hacerlo visible para el HTML
+window.authManager = authManager;
+
+function toggleAuth(isRegister) {
+    authManager.toggleAuth(isRegister);
+}
+
 // Función para el Login
 async function handleLogin() {
     const user = document.getElementById('login-username').value;
@@ -44,7 +50,7 @@ async function handleLogin() {
     const msg = document.getElementById('auth-message');
 
     try {
-        const response = await fetch('/login', {
+        const response = await fetch('login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username: user, password: pass })
@@ -68,29 +74,39 @@ async function handleRegister() {
     const pass = document.getElementById('reg-password').value;
     const msg = document.getElementById('auth-message');
 
-    // Validación básica en frontend antes de enviar
-    const passRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+    // Mantenemos la validación de seguridad local
+    const passRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#./])[A-Za-z\d@$!%*?&#./]{8,}$/;
+    
     if (!passRegex.test(pass)) {
+        msg.style.color = "#ff4d4d";
         msg.innerText = "La clave no cumple los requisitos de seguridad";
         return;
     }
 
     try {
+        // CAMBIO CRUCIAL: Ruta relativa
         const response = await fetch('/register', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username: user, password: pass })
         });
 
+        const data = await response.json();
+
         if (response.ok) {
             msg.style.color = "#2ecc71";
-            msg.innerText = "¡Registro exitoso! Ya puedes entrar.";
-            setTimeout(() => authManager.toggleAuth(false), 2000);
+            msg.innerText = data.message;
+            setTimeout(() => toggleAuth(false), 1500);
         } else {
             msg.style.color = "#ff4d4d";
-            msg.innerText = "Error: El usuario ya existe o es inválido";
+            msg.innerText = data.message || "Error al registrar";
         }
     } catch (err) {
-        msg.innerText = "Error al conectar con el servidor";
+        msg.innerText = "Error de comunicación con el servidor";
     }
 }
+
+// Exponer funciones al scope global explícitamente
+window.toggleAuth = toggleAuth;
+window.handleLogin = handleLogin;
+window.handleRegister = handleRegister;

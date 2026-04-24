@@ -49,7 +49,7 @@ int main() {
         return crow::response(404, "index.html no encontrado");
     });
 
-    CROW_ROUTE(app, "/app.js")  // Ruta para el JS
+    CROW_ROUTE(app, "/app.js")  // Ruta para el JS de app
     ([]() {
         std::ifstream f("../web/app.js");
         if (f) {
@@ -64,6 +64,19 @@ int main() {
         }
         return crow::response(404);
     });
+
+    CROW_ROUTE(app, "/auth.js") // Ruta para el JS de auth
+([]() {
+    std::ifstream f("../web/auth.js");
+    if (f) {
+        std::stringstream buffer;
+        buffer << f.rdbuf();
+        crow::response res(buffer.str());
+        res.set_header("Content-Type", "application/javascript");
+        return res;
+    }
+    return crow::response(404, "auth.js no encontrado");
+});
 
     CROW_ROUTE(app, "/style.css") // Ruta para el CSS
     ([]() {
@@ -81,7 +94,6 @@ int main() {
     });
 
     // --- ENPOINTS DE ESTADO ---
-
     CROW_ROUTE(app, "/api/mode/<string>")
     ([&](const crow::request& req, std::string mode) {
         is_autonomous = (mode == "auto"); 
@@ -94,42 +106,43 @@ int main() {
     });
 
     // --- ENDPOINTS DE AUTENTICACION ---
-    CROW_ROUTE(app, "/register").methods(crow::HTTPMethod::POST)    // Ruta de Registro
+    CROW_ROUTE(app, "/register").methods(crow::HTTPMethod::POST) // Ruta de register
     ([&auth](const crow::request& req) {
         auto x = crow::json::load(req.body);
-        if (!x) return crow::response(400, "JSON Inválido");
+        if (!x) return crow::response(400, "{\"message\":\"JSON Inválido\"}");
 
         std::string user = x["username"].s();
         std::string pass = x["password"].s();
 
+        crow::json::wvalue res;
         if (auth.registerUser(user, pass)) {
-            return crow::response(201, "Usuario creado exitosamente");
+            res["status"] = "success";
+            res["message"] = "Usuario creado exitosamente";
+            return crow::response(201, res);
         } else {
-            return crow::response(400, "Nombre de usuario no válido o ya existe");
+            res["status"] = "error";
+            res["message"] = "El usuario ya existe o no es válido";
+            return crow::response(400, res);
         }
     });
 
-    CROW_ROUTE(app, "/login").methods(crow::HTTPMethod::POST)   // Ruta de Login
+    CROW_ROUTE(app, "/login").methods(crow::HTTPMethod::POST) // Ruta de login
     ([&auth](const crow::request& req) {
         auto x = crow::json::load(req.body);
-        if (!x) return crow::response(400, "JSON Inválido");
+        if (!x) return crow::response(400, "{\"message\":\"JSON Inválido\"}");
 
         std::string user = x["username"].s();
         std::string pass = x["password"].s();
 
+        crow::json::wvalue res;
         if (auth.authenticate(user, pass)) {
-            crow::json::wvalue res;
             res["status"] = "success";
-            res["message"] = "Autenticación exitosa";
-            // Aquí podrías generar un token simple, por ahora usaremos éxito/fallo
+            res["message"] = "Login correcto";
             return crow::response(200, res);
         } else {
-            crow::json::wvalue res;
             res["status"] = "error";
-            
             if (auth.isLocked(user)) {
-                res["message"] = "Usuario bloqueado. Intente en: " + 
-                                 std::to_string(auth.getRemainingLockTime(user)) + "s";
+                res["message"] = "Bloqueado. Intente en " + std::to_string(auth.getRemainingLockTime(user)) + "s";
             } else {
                 res["message"] = "Credenciales incorrectas";
             }
@@ -390,6 +403,7 @@ int main() {
     std::cout << "Abrir en navegador: http://localhost:8080" << std::endl;
     std::cout << "==========================================\n" << std::endl;
 
+    app.loglevel(crow::LogLevel::Warning); // Esto ocultará los "Request/Response" constantes y solo mostrará errores
     app.port(8080).multithreaded().run();
     return 0;
 }
