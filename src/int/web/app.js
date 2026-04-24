@@ -17,9 +17,16 @@ let isPlaying = false;
 let songs = [];
 
 // Conectar al servidor al cargar la pagina
-window.onload = connect;
+window.onload = () => {
+    // Solo intentar conectar si ya hay una sesión
+    if (authManager.checkAuth()) {
+        connect();
+    }
+};
 
 function connect() {
+    if (socket && socket.readyState === WebSocket.OPEN) return;
+
     // const serverAddr = window.location.host || 'localhost:8080';
     const wsUrl = `ws://127.0.0.1:8080/ws`;
 
