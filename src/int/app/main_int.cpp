@@ -66,17 +66,17 @@ int main() {
     });
 
     CROW_ROUTE(app, "/auth.js") // Ruta para el JS de auth
-([]() {
-    std::ifstream f("../web/auth.js");
-    if (f) {
-        std::stringstream buffer;
-        buffer << f.rdbuf();
-        crow::response res(buffer.str());
-        res.set_header("Content-Type", "application/javascript");
-        return res;
-    }
-    return crow::response(404, "auth.js no encontrado");
-});
+    ([]() {
+        std::ifstream f("../web/auth.js");
+        if (f) {
+            std::stringstream buffer;
+            buffer << f.rdbuf();
+            crow::response res(buffer.str());
+            res.set_header("Content-Type", "application/javascript");
+            return res;
+        }
+        return crow::response(404, "auth.js no encontrado");
+    });
 
     CROW_ROUTE(app, "/style.css") // Ruta para el CSS
     ([]() {
