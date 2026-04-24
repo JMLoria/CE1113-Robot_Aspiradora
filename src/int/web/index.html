@@ -18,7 +18,28 @@
         .offline { background-color: #e74c3c; }
     </style>
 </head>
+
 <body>
+    <div id="auth-overlay" class="overlay">
+        <div class="autho-modal">
+            <h2 id="auth-title">Control de Acceso</h2>
+            <p id="auth-message" style="font-size: 0.8em; color: #ff4d4d; min-height: 1.2em;"></p>
+
+            <div id="login-form">
+                <input type="text" id="login-username" placeholder="Usuario" autocomplete="off">
+                <input type="password" id="login-password" placeholder="Contraseña">
+                <button onclick="handleLogin()" class="btn-primary">Entrar</button>
+                <p class="switch-auth">¿No tienes cuenta? <a href="#" onclick="toggleAuth(true)">Regístrate aquí</a></p>
+            </div>
+
+            <div id="register-form" style="display: none;">
+                <input type="text" id="reg-username" placeholder="Nuevo Usuario" autocomplete="off">
+                <input type="password" id="reg-password" placeholder="Nueva Contraseña">
+                <button onclick="handleRegister()" class="btn-success">Crear Cuenta</button>
+                <p class="switch-auth">¿Ya tienes cuenta? <a href="#" onclick="toggleAuth(false)">Inicia sesión</a></p>
+            </div>
+        </div>
+    </div>
     <h1>Panel de Control</h1>
     <div id="status"><span class="status-dot offline"></span>Desconectado</div>
 
