@@ -43,3 +43,9 @@ INSANE_SKIP:${PN}:append = " dev-so ldflags"
 
 
 SECTION = "utils"
+
+# Definimos el chip por defecto (Pi 4)
+EXTRA_OECMAKE += "-DGPIO_CHIP_NAME=\"gpiochip0\""
+
+# Si la máquina es Raspberry Pi 5, sobrescribimos la bandera
+EXTRA_OECMAKE:append:raspberrypi5 = " -DGPIO_CHIP_NAME=\"gpiochip4\""
