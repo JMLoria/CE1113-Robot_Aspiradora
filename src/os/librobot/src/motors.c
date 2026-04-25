@@ -5,7 +5,11 @@
 #include <unistd.h>
 #include <pthread.h>
 
-#define GPIO_DEVICE "/dev/gpiochip0"
+#ifndef GPIO_CHIP_NAME
+#define GPIO_CHIP_NAME "gpiochip0" // Valor por defecto para RPi4
+#endif
+
+#define GPIO_DEVICE "/dev/" GPIO_CHIP_NAME
 
 // Offsets de la RPi4
 #define MOTOR_L_IN1  17
@@ -16,7 +20,7 @@
 #define MOTOR_R_PWM  25
 
 #define PWM_PERIOD_US 20000
-#define MS_PER_90_DEG 850 // Calibración base
+
 
 typedef struct {
     unsigned int       offset;
@@ -48,7 +52,9 @@ static void *pwm_thread(void *arg) {
     return NULL;
 }
 
-static robot_status_t motors_init(void) {
+static bool initialized = false;
+
+robot_status_t motors_init(void) {
     if (motor_request) return ROBOT_OK;
 
     chip = gpiod_chip_open(GPIO_DEVICE);
@@ -81,6 +87,7 @@ static robot_status_t motors_init(void) {
     pthread_create(&pwm_left.thread, NULL, pwm_thread, &pwm_left);
     pthread_create(&pwm_right.thread, NULL, pwm_thread, &pwm_right);
 
+    initialized = true;
     return ROBOT_OK;
 }
 
@@ -90,37 +97,57 @@ robot_status_t robot_move(robot_dir_t dir, uint8_t speed) {
     pwm_left.duty_cycle = (speed > 100) ? 100 : speed;
     pwm_right.duty_cycle = pwm_left.duty_cycle;
 
+    // Ahora el tipo ya es conocido por el compilador gracias al cambio en librobot.h
     enum gpiod_line_value vals[4]; 
+    
     switch (dir) {
-        case DIR_FORWARD:  vals[0]=1; vals[1]=0; vals[2]=1; vals[3]=0; break;
-        case DIR_BACKWARD: vals[0]=0; vals[1]=1; vals[2]=0; vals[3]=1; break;
-        case DIR_LEFT:     vals[0]=0; vals[1]=1; vals[2]=1; vals[3]=0; break;
-        case DIR_RIGHT:    vals[0]=1; vals[1]=0; vals[2]=0; vals[3]=1; break;
-        case DIR_STOP:     vals[0]=0; vals[1]=0; vals[2]=0; vals[3]=0; 
-                           pwm_left.duty_cycle=0; pwm_right.duty_cycle=0; break;
+        case DIR_FORWARD:  
+            vals[0] = GPIOD_LINE_VALUE_ACTIVE;   vals[1] = GPIOD_LINE_VALUE_INACTIVE; 
+            vals[2] = GPIOD_LINE_VALUE_ACTIVE;   vals[3] = GPIOD_LINE_VALUE_INACTIVE; 
+            break;
+        case DIR_BACKWARD: 
+            vals[0] = GPIOD_LINE_VALUE_INACTIVE; vals[1] = GPIOD_LINE_VALUE_ACTIVE; 
+            vals[2] = GPIOD_LINE_VALUE_INACTIVE; vals[3] = GPIOD_LINE_VALUE_ACTIVE; 
+            break;
+        case DIR_LEFT:     
+            vals[0] = GPIOD_LINE_VALUE_INACTIVE; vals[1] = GPIOD_LINE_VALUE_ACTIVE; 
+            vals[2] = GPIOD_LINE_VALUE_ACTIVE;   vals[3] = GPIOD_LINE_VALUE_INACTIVE; 
+            break;
+        case DIR_RIGHT:    
+            vals[0] = GPIOD_LINE_VALUE_ACTIVE;   vals[1] = GPIOD_LINE_VALUE_INACTIVE; 
+            vals[2] = GPIOD_LINE_VALUE_INACTIVE; vals[3] = GPIOD_LINE_VALUE_ACTIVE; 
+            break;
+        case DIR_STOP:     
+            vals[0] = GPIOD_LINE_VALUE_INACTIVE; vals[1] = GPIOD_LINE_VALUE_INACTIVE; 
+            vals[2] = GPIOD_LINE_VALUE_INACTIVE; vals[3] = GPIOD_LINE_VALUE_INACTIVE; 
+            pwm_left.duty_cycle = 0; pwm_right.duty_cycle = 0; 
+            break;
         default: return ROBOT_ERR_ARG;
     }
 
     unsigned int drv_offsets[] = {MOTOR_L_IN1, MOTOR_L_IN2, MOTOR_R_IN1, MOTOR_R_IN2};
+    
     gpiod_line_request_set_values_subset(motor_request, 4, drv_offsets, vals);
     
     return ROBOT_OK;
 }
-
-/* --- LAS FUNCIONES QUE FALTABAN --- */
 
 robot_status_t robot_stop(void) {
     return robot_move(DIR_STOP, 0);
 }
 
 robot_status_t robot_rotate(robot_dir_t dir, float degrees) {
+    // Verificación de seguridad 
+    if (!initialized) return ROBOT_ERR_HW;
     if (dir != DIR_LEFT && dir != DIR_RIGHT) return ROBOT_ERR_ARG;
     
+    // Cálculo proporcional
     uint32_t duration_ms = (uint32_t)((degrees / 90.0f) * MS_PER_90_DEG);
     
-    robot_move(dir, 60); // Velocidad constante para giro
+    // Ejecución física
+    robot_move(dir, 60); 
     usleep(duration_ms * 1000);
-    robot_stop();
+    robot_stop(); 
     
     return ROBOT_OK;
 }

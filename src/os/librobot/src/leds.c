@@ -3,7 +3,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define GPIO_DEVICE "/dev/gpiochip0" // Ruta completa requerida en v2
+#ifndef GPIO_CHIP_NAME
+#define GPIO_CHIP_NAME "gpiochip0"
+#endif
+
+#define GPIO_DEVICE "/dev/" GPIO_CHIP_NAME
 
 // Pines (offsets)
 #define LED_PIN_POWER    27
@@ -16,7 +20,7 @@ static struct gpiod_line_request *led_request = NULL;
 static unsigned int led_offsets[] = {LED_PIN_POWER, LED_PIN_AUTO, LED_PIN_MANUAL, LED_PIN_OBSTACLE};
 static robot_led_state_t led_states[4] = {LED_OFF, LED_OFF, LED_OFF, LED_OFF};
 
-static int leds_init() {
+robot_status_t leds_init() {
     if (led_request) return 0;
 
     chip = gpiod_chip_open(GPIO_DEVICE);
@@ -47,8 +51,13 @@ robot_status_t robot_led_set(robot_led_t led, robot_led_state_t state) {
     if (leds_init() != 0) return ROBOT_ERR_HW;
     if (led < 0 || led > 3) return ROBOT_ERR_ARG;
 
-    // En v2 usamos la petición y el offset específico
-    gpiod_line_request_set_value(led_request, led_offsets[led], (enum gpiod_line_value)state);
+    // En lugar de usar el enum, usamos las macros del "puente" de librobot.h
+    gpiod_line_request_set_value(
+        led_request, 
+        led_offsets[led], 
+        (state == LED_ON) ? GPIOD_LINE_VALUE_ACTIVE : GPIOD_LINE_VALUE_INACTIVE
+    );
+
     led_states[led] = state;
     return ROBOT_OK;
 }

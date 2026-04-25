@@ -1,6 +1,10 @@
 #include "librobot.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <pthread.h>
+#include <unistd.h>    // Para usleep
+
+void* autonomous_worker(void* arg);
 
 /* Estado interno del robot */
 static robot_mode_t current_mode = MODE_MANUAL;
@@ -108,7 +112,7 @@ void robot_internal_notify_obstacle(float distance) {
 void* autonomous_worker(void* arg) {
     while (!stop_auto) {
         if (current_mode == MODE_AUTONOMOUS) {
-            float dist = robot_get_distance(SENSOR_FRONT); /
+            float dist = robot_get_distance(SENSOR_FRONT); 
             
             if (dist < 15.0f && dist > 0.0f) { // Obstáculo a menos de 15cm
                 robot_stop();

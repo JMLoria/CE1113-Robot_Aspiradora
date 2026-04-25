@@ -1,11 +1,15 @@
 #ifndef LIBROBOT_H
 #define LIBROBOT_H
+#define MS_PER_90_DEG 850 // Calibración base para rotación de 90 grados TODO: (ajustar según pruebas reales)
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 #include <stdint.h>
+#include <stdint.h>
+#include <gpiod.h>
+
 
 // Definiciones de tipos y constantes
 
@@ -67,15 +71,18 @@ robot_mode_t   robot_get_mode(void);
 
 // Control de movimiento
 // speed: 0 (parado) a 100 (velocidad máxima)
+robot_status_t motors_init(void);
 robot_status_t robot_move(robot_dir_t dir, uint8_t speed);
 robot_status_t robot_stop(void);
 robot_status_t robot_rotate(robot_dir_t dir, float degrees); // Requisito: Rotación
 robot_status_t robot_get_odometry(robot_odometry_t *odom);
 
 // Sensores
+robot_status_t sensors_init(void);
 robot_status_t robot_sensor_read(robot_sensor_data_t *data);
 
 // LEDs
+robot_status_t leds_init(void);
 robot_status_t robot_led_set(robot_led_t led, robot_led_state_t state);
 robot_led_state_t robot_led_get(robot_led_t led); // Requisito: Get LED
 
@@ -97,6 +104,8 @@ typedef enum {
 
 // Devuelve la distancia en centímetros, o -1.0f si falla o está fuera de rango.
 float robot_get_distance(int sensor_id);
+
+
 
 #ifdef __cplusplus
 }

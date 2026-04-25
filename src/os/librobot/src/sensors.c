@@ -1,100 +1,116 @@
+#define _POSIX_C_SOURCE 199309L
+#include <gpiod.h>
 #include "librobot.h"
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <dirent.h>
+#include <time.h>
 
-#define SOUNDS_PATH "/usr/share/robot/sounds/"
-#define FIFO_PATH "/tmp/mpg123_fifo"
+#ifndef GPIO_CHIP_NAME
+#define GPIO_CHIP_NAME "gpiochip0"
+#endif
 
-static int audio_daemon_running = 0;
+#define GPIO_DEVICE "/dev/" GPIO_CHIP_NAME
 
-// Inicializa el reproductor en segundo plano
-static void init_audio_daemon() {
-    if (!audio_daemon_running) {
-        unlink(FIFO_PATH);            // Limpiar tuberías previas
-        mkfifo(FIFO_PATH, 0666);      // Crear nueva tubería FIFO
-        
-        // Iniciar mpg123 en modo remoto, leyendo comandos desde el FIFO
-        system("mpg123 -R --fifo " FIFO_PATH " > /dev/null 2>&1 &");
-        audio_daemon_running = 1;
-    }
+#define SENSOR_FRONT_TRIG  5
+#define SENSOR_FRONT_ECHO  6
+#define SENSOR_LEFT_TRIG   19
+#define SENSOR_LEFT_ECHO   26
+
+static struct gpiod_chip *chip = NULL;
+static struct gpiod_line_request *sensor_request = NULL;
+
+// Función de inicialización de sensores
+robot_status_t sensors_init(void) {
+    if (sensor_request) return ROBOT_OK;
+
+    chip = gpiod_chip_open(GPIO_DEVICE);
+    if (!chip) return ROBOT_ERR_HW;
+
+    struct gpiod_line_config *line_cfg = gpiod_line_config_new();
+    
+    // Configuración para Triggers (Salida)
+    struct gpiod_line_settings *out_settings = gpiod_line_settings_new();
+    gpiod_line_settings_set_direction(out_settings, GPIOD_LINE_DIRECTION_OUTPUT);
+    unsigned int trigs[] = {SENSOR_FRONT_TRIG, SENSOR_LEFT_TRIG};
+    gpiod_line_config_add_line_settings(line_cfg, trigs, 2, out_settings);
+
+    // Configuración para Echoes (Entrada)
+    struct gpiod_line_settings *in_settings = gpiod_line_settings_new();
+    gpiod_line_settings_set_direction(in_settings, GPIOD_LINE_DIRECTION_INPUT);
+    unsigned int echoes[] = {SENSOR_FRONT_ECHO, SENSOR_LEFT_ECHO};
+    gpiod_line_config_add_line_settings(line_cfg, echoes, 2, in_settings);
+
+    struct gpiod_request_config *req_cfg = gpiod_request_config_new();
+    gpiod_request_config_set_consumer(req_cfg, "robot_sensors");
+
+    sensor_request = gpiod_chip_request_lines(chip, req_cfg, line_cfg);
+
+    gpiod_line_settings_free(out_settings);
+    gpiod_line_settings_free(in_settings);
+    gpiod_line_config_free(line_cfg);
+    gpiod_request_config_free(req_cfg);
+
+    return sensor_request ? ROBOT_OK : ROBOT_ERR_HW;
 }
 
-// Función auxiliar para enviar comandos al proceso mpg123
-static robot_status_t send_audio_command(const char *cmd) {
-    init_audio_daemon();
+// Función auxiliar para calcular microsegundos transcurridos de forma exacta
+static double get_elapsed_us(struct timespec *start, struct timespec *end) {
+    return (end->tv_sec - start->tv_sec) * 1000000.0 + (end->tv_nsec - start->tv_nsec) / 1000.0;
+}
+
+// Nueva implementación de lectura con Timeouts estrictos
+static float measure_distance(unsigned int trig, unsigned int echo) {
+    struct timespec start, end, timeout_start, current;
     
-    // O_NONBLOCK evita que el hilo se quede pegado si mpg123 falla
-    int fd = open(FIFO_PATH, O_WRONLY | O_NONBLOCK);
-    if (fd == -1) {
-        fprintf(stderr, "[Audio HW] Error al abrir el FIFO de audio.\n");
-        return ROBOT_ERR_HW;
+    // 1. Enviar Pulso Trigger de 10us
+    gpiod_line_request_set_value(sensor_request, trig, GPIOD_LINE_VALUE_ACTIVE);
+    struct timespec pulse = {0, 10000};
+    nanosleep(&pulse, NULL);
+    gpiod_line_request_set_value(sensor_request, trig, GPIOD_LINE_VALUE_INACTIVE);
+
+    // 2. Esperar flanco de subida (Timeout de 30ms)
+    clock_gettime(CLOCK_MONOTONIC, &timeout_start);
+    while (gpiod_line_request_get_value(sensor_request, echo) == GPIOD_LINE_VALUE_INACTIVE) {
+        clock_gettime(CLOCK_MONOTONIC, &current);
+        if (get_elapsed_us(&timeout_start, &current) > 30000.0) return -1.0f; // Fuera de rango / Error hardware
+    }
+    clock_gettime(CLOCK_MONOTONIC, &start); // Inicia cronómetro de viaje del sonido
+
+    // 3. Esperar flanco de bajada (Timeout de 30ms)
+    while (gpiod_line_request_get_value(sensor_request, echo) == GPIOD_LINE_VALUE_ACTIVE) {
+        clock_gettime(CLOCK_MONOTONIC, &current);
+        if (get_elapsed_us(&start, &current) > 30000.0) return -1.0f; // Objeto demasiado lejos
+    }
+    clock_gettime(CLOCK_MONOTONIC, &end); // Termina cronómetro
+
+    // 4. Calcular distancia matemática
+    double elapsed_us = get_elapsed_us(&start, &end);
+    
+    // Formula: Distancia = (Tiempo * Velocidad) / 2
+    // Velocidad del sonido = 0.0343 cm/us
+    float distance = (float)(elapsed_us * 0.0343 / 2.0);
+    
+    return distance;
+}
+
+float robot_get_distance(int sensor_id) {
+    if (!sensor_request) return -1.0f;
+
+    // Asumimos que 0 es el Frente y 1 es la Izquierda según la declaración en robot.c
+    if (sensor_id == 0) { 
+        return measure_distance(SENSOR_FRONT_TRIG, SENSOR_FRONT_ECHO);
+    } else if (sensor_id == 1) { 
+        return measure_distance(SENSOR_LEFT_TRIG, SENSOR_LEFT_ECHO);
     }
     
-    dprintf(fd, "%s\n", cmd);
-    close(fd);
+    return -1.0f;
+}
+
+robot_status_t robot_sensor_read(robot_sensor_data_t *data) {
+    if (!data) return ROBOT_ERR_ARG;
+
+    // Asignamos a los campos con sufijo _cm
+    data->front_cm = robot_get_distance(SENSOR_FRONT);
+    data->left_cm  = robot_get_distance(SENSOR_LEFT);
+
     return ROBOT_OK;
-}
-
-robot_status_t robot_audio_play(const char *filepath) {
-    char cmd[512];
-    // Si la ruta no empieza con '/', asumimos que es relativa a SOUNDS_PATH
-    if (filepath[0] == '/') {
-        snprintf(cmd, sizeof(cmd), "LOAD %s", filepath);
-    } else {
-        snprintf(cmd, sizeof(cmd), "LOAD %s%s", SOUNDS_PATH, filepath);
-    }
-    return send_audio_command(cmd);
-}
-
-robot_status_t robot_audio_pause(void) {
-    return send_audio_command("PAUSE");
-}
-
-robot_status_t robot_audio_stop(void) {
-    return send_audio_command("STOP");
-}
-
-robot_status_t robot_audio_set_volume(uint8_t volume) {
-    char cmd[64];
-    // Evitar que el volumen exceda el 100% para no saturar el DAC de la Raspberry Pi
-    if (volume > 100) volume = 100;
-    snprintf(cmd, sizeof(cmd), "VOLUME %d", volume);
-    return send_audio_command(cmd);
-}
-
-robot_status_t robot_audio_get_list(char ***files, int *count) {
-    DIR *d;
-    struct dirent *dir;
-    int index = 0;
-    
-    d = opendir(SOUNDS_PATH);
-    if (d) {
-        // Contar archivos primero para reservar memoria
-        int total_files = 0;
-        while ((dir = readdir(d)) != NULL) {
-            if (strstr(dir->d_name, ".mp3")) total_files++;
-        }
-        rewinddir(d);
-        
-        *files = malloc(total_files * sizeof(char*));
-        if (!*files) return ROBOT_ERR_HW;
-        
-        while ((dir = readdir(d)) != NULL) {
-            if (strstr(dir->d_name, ".mp3")) {
-                (*files)[index] = strdup(dir->d_name);
-                index++;
-            }
-        }
-        closedir(d);
-        *count = index;
-        return ROBOT_OK;
-    }
-    
-    *count = 0;
-    return ROBOT_ERR_HW;
 }
