@@ -11,6 +11,11 @@
 
 int main() {
     robot_init();
+    if (robot_init() != ROBOT_OK) {
+        std::cerr << "Error crítico: No se pudo inicializar el hardware." << std::endl;
+        return -1;
+    }
+    robot_set_obstacle_handler(on_obstacle_detected);
     crow::SimpleApp app;
     AudioManager audio; 
     MappingManager mapper(20, 20);
@@ -79,66 +84,75 @@ int main() {
 
     //---------------------SET_MODE-----------------------
     CROW_ROUTE(app, "/api/mode/<string>")
-    ([&](const crow::request& req, std::string mode) {
-        is_autonomous = (mode == "auto"); 
-        std::cout << "[MODO] Cambiando a: " << mode << "[" << is_autonomous << "]" << std::endl;
-        crow::response res(200, "Modo actualizado");
-        // Esto permite que el archivo HTML local se comunique con el servidor
-        res.set_header("Access-Control-Allow-Origin", "*"); 
+    ([&is_autonomous](std::string mode) {
+        crow::response res;
+        res.set_header("Access-Control-Allow-Origin", "*");
+        
+        if (mode == "auto") {
+            is_autonomous = true;
+            robot_set_mode(MODE_AUTONOMOUS);
+            res.body = "Modo cambiado a auto";
+        } else {
+            is_autonomous = false;
+            robot_set_mode(MODE_MANUAL);
+            res.body = "Modo cambiado a manual";
+        }
+        
+        res.code = 200;
         return res;
-        // return crow::response(200, "Modo actualizado");
     });
 
-    // --- ENDPOINTS CONTROL REMOTO MANUAL ---  
     CROW_ROUTE(app, "/api/move/<string>") 
-    ([&](const crow::request& req, std::string dir) {
-        if (dir == "left") {
-            robot_angle = (robot_angle - 90 + 360) % 360;
-            std::cout << "[MOTOR] Rotando Izquierda. Nuevo angulo: " << robot_angle << std::endl;
-            robot_rotate(DIR_LEFT, 90.0f);
-        } else if (dir == "right") {
-            robot_angle = (robot_angle + 90) % 360;
-            std::cout << "[MOTOR] Rotando Derecha. Nuevo angulo: " << robot_angle << std::endl;
-            robot_rotate(DIR_RIGHT, 90.0f);
-        } else if (dir == "forward" || dir == "backward") {
-            int step = (dir == "forward") ? 1 : -1;
-            int next_x = cur_x;
-            int next_y = cur_y;
-            if (dir == "forward") {
-                robot_move(DIR_FORWARD, 80);
-            } else {
-                robot_move(DIR_BACKWARD, 80);
+        ([&](const crow::request& req, std::string dir) {
+            crow::response res;
+            res.set_header("Access-Control-Allow-Origin", "*");
+            res.code = 200;
+
+            if (dir == "left") {
+                robot_angle = (robot_angle - 90 + 360) % 360;
+                robot_rotate(DIR_LEFT, 90.0f); // Rotación física
+                std::cout << "[MOTOR] Rotando Izquierda. Ángulo: " << robot_angle << std::endl;
+                
+            } else if (dir == "right") {
+                robot_angle = (robot_angle + 90) % 360;
+                robot_rotate(DIR_RIGHT, 90.0f); // Rotación física
+                std::cout << "[MOTOR] Rotando Derecha. Ángulo: " << robot_angle << std::endl;
+
+            } else if (dir == "forward" || dir == "backward") {
+                int step = (dir == "forward") ? 1 : -1;
+                int next_x = cur_x;
+                int next_y = cur_y;
+
+                // 1. Calculamos a dónde iría según la orientación actual
+                if (robot_angle == 0)   next_y -= step;  // Norte
+                else if (robot_angle == 90)  next_x += step;  // Este
+                else if (robot_angle == 180) next_y += step;  // Sur
+                else if (robot_angle == 270) next_x -= step;  // Oeste
+
+                // 2. Verificamos en el mapa si es seguro moverse ahí (Evitar colisiones físicas)
+                if (mapper.isTraversable(next_x, next_y)) {
+                    cur_x = next_x;
+                    cur_y = next_y;
+                    
+                    // 3. Solo si es seguro, ejecutamos el movimiento físico
+                    if (dir == "forward") robot_move(DIR_FORWARD, 80);
+                    else robot_move(DIR_BACKWARD, 80);
+
+                    mapper.updateRobotPosition(cur_x, cur_y);
+                    std::cout << "[MOTOR] Moviendo a " << next_x << "," << next_y << std::endl;
+                } else {
+                    // Bloqueo de seguridad: No arrancamos motores si hay pared en el mapa
+                    robot_stop(); 
+                    std::cout << "[ALERTA] Movimiento bloqueado por mapa en " << next_x << "," << next_y << std::endl;
+                    audio.notifications("obstacle");
+                }
+
+            } else if (dir == "stop") {
+                robot_stop(); 
+                std::cout << "[MOTOR] Movimiento detenido." << std::endl;
             }
-
-            // Logica de movimiento segun orientacion
-            if (robot_angle == 0)   next_y -= step;  // Norte
-            if (robot_angle == 90)  next_x += step;  // Este
-            if (robot_angle == 180) next_y += step;  // Sur
-            if (robot_angle == 270) next_x -= step;  // Oeste
-
-            if (mapper.isTraversable(next_x, next_y)) {
-                cur_x = next_x;
-                cur_y = next_y;
-                mapper.updateRobotPosition(cur_x, cur_y);
-                std::cout << "[MOTOR] " << dir << std::endl;
-            } else {
-                std::cout << "[ALERTA] Obstáculo detectado en " << next_x << "," << next_y << ". Movimiento cancelado." << std::endl;
-                audio.notifications("obstacle");
-            }
-        } else if (dir == "stop") {
-            mapper.resetMap();
-
-            cur_x = 10;
-            cur_y = 10;
-            robot_angle = 0;
-
-            std::cout << "[SISTEMA] Stop: Motores detenidos y mapa limpio" << std::endl;
-        }
-        crow::response res(200, "OK");
-        // Esto permite que el archivo HTML local se comunique con el servidor
-        res.set_header("Access-Control-Allow-Origin", "*"); 
-        return res;
-        // return crow::response(200, "OK");
+            res.body = "OK";
+            return res;
     });
 
     // --- ENDPONTS MUSICA ---
@@ -316,16 +330,18 @@ int main() {
     .onopen([&](crow::websocket::connection& conn) {
         std::cout << "[WS] Cliente conectado. Sincronizando..." << std::endl;
     })
-.onmessage([&](crow::websocket::connection& conn, const std::string& data, bool is_binary) {
-        if (data == "update") {
-            crow::json::wvalue response;
+    .onmessage([&](crow::websocket::connection& conn, const std::string& data, bool is_binary) {
+            if (data == "update") {
+                crow::json::wvalue response; 
+                robot_sensor_data_t s_data = {0}; // Inicialización limpia
             
-            // --- 1. Sincronización de Sensores y Mapeo ---
-            robot_sensor_data_t s_data;
-            if (robot_sensor_read(&s_data) == ROBOT_OK) {
-                if (s_data.front_cm < 20.0f) {
-                    obstacle_alert = true;
-                    
+                if (robot_sensor_read(&s_data) == ROBOT_OK) {
+                    if (s_data.front_cm < 20.0f && s_data.front_cm > 0.0f) {
+                        obstacle_alert = true;
+                        // Detenemos motores si hay colisión inminente
+                        robot_stop(); 
+
+                    // Lógica de mapeo simplificada
                     int obs_x = cur_x, obs_y = cur_y;
                     if (robot_angle == 0) obs_y--;
                     else if (robot_angle == 90) obs_x++;
@@ -337,6 +353,10 @@ int main() {
                     obstacle_alert = false;
                 }
             }
+            
+            response["sensor"]["front"] = s_data.front_cm;
+            response["sensor"]["left"]  = s_data.left_cm;
+            response["sensor"]["unit"]  = "cm";
 
             // --- 2. Preparación de Respuesta JSON ---
             auto map_data = crow::json::load(mapper.getMapAsJson());
@@ -344,8 +364,7 @@ int main() {
             response["map"]["robot"] = map_data["robot"];
             response["map"]["angle"] = robot_angle;
 
-        
-
+    
             // 2. Datos de Audio Real (Extraídos del hilo de mpg123)
             response["audio"]["track"] = audio.getCurrentTrackName();
             response["audio"]["current"] = audio.getCurrentTime();
