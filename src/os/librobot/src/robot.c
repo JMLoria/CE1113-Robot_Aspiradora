@@ -21,9 +21,20 @@ robot_status_t robot_init(void) {
     if (initialized) return ROBOT_ERR_BUSY;
 
     // Inicializar todos los subsistemas de hardware
-    if (leds_init() != 0) return ROBOT_ERR_HW;
-    if (sensors_init() != ROBOT_OK) return ROBOT_ERR_HW;
-    if (motors_init() != ROBOT_OK) return ROBOT_ERR_HW;
+    if (initialized) return ROBOT_ERR_BUSY;
+
+    if (leds_init() != 0) {
+        fprintf(stderr, "[robot_init] FALLO: leds_init()\n");
+        return ROBOT_ERR_HW;
+    }
+    if (sensors_init() != ROBOT_OK) {
+        fprintf(stderr, "[robot_init] FALLO: sensors_init()\n");
+        return ROBOT_ERR_HW;
+    }
+    if (motors_init() != ROBOT_OK) {
+        fprintf(stderr, "[robot_init] FALLO: motors_init()\n");
+        return ROBOT_ERR_HW;
+    }
 
     robot_led_set(LED_POWER, LED_ON);
     current_mode = MODE_MANUAL;

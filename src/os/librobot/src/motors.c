@@ -13,11 +13,11 @@
 
 // Offsets de la RPi4
 #define MOTOR_L_IN1  17
-#define MOTOR_L_IN2  18
+#define MOTOR_L_IN2  27
 #define MOTOR_R_IN1  22
 #define MOTOR_R_IN2  23
-#define MOTOR_L_PWM  24
-#define MOTOR_R_PWM  25
+#define MOTOR_L_PWM  12
+#define MOTOR_R_PWM  13
 
 #define PWM_PERIOD_US 20000
 

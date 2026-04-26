@@ -12,8 +12,8 @@
 
 #define SENSOR_FRONT_TRIG  5
 #define SENSOR_FRONT_ECHO  6
-#define SENSOR_LEFT_TRIG   19
-#define SENSOR_LEFT_ECHO   26
+#define SENSOR_LEFT_TRIG   20
+#define SENSOR_LEFT_ECHO   21
 
 static struct gpiod_chip *chip = NULL;
 static struct gpiod_line_request *sensor_request = NULL;

@@ -2,6 +2,8 @@
 #include <gpiod.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <errno.h>
+#include <string.h>
 
 #ifndef GPIO_CHIP_NAME
 #define GPIO_CHIP_NAME "gpiochip0"
@@ -10,10 +12,10 @@
 #define GPIO_DEVICE "/dev/" GPIO_CHIP_NAME
 
 // Pines (offsets)
-#define LED_PIN_POWER    27
-#define LED_PIN_AUTO     21
-#define LED_PIN_MANUAL   20
-#define LED_PIN_OBSTACLE 16
+#define LED_PIN_POWER    4
+#define LED_PIN_AUTO     16
+#define LED_PIN_MANUAL   24
+#define LED_PIN_OBSTACLE 25
 
 static struct gpiod_chip *chip = NULL;
 static struct gpiod_line_request *led_request = NULL;
@@ -24,7 +26,11 @@ robot_status_t leds_init() {
     if (led_request) return 0;
 
     chip = gpiod_chip_open(GPIO_DEVICE);
-    if (!chip) return -1;
+    if (!chip) {
+    fprintf(stderr, "[leds_init] gpiod_chip_open(%s) falló: %s\n", 
+            GPIO_DEVICE, strerror(errno));
+    return -1;
+}
 
     struct gpiod_line_settings *settings = gpiod_line_settings_new();
     gpiod_line_settings_set_direction(settings, GPIOD_LINE_DIRECTION_OUTPUT);
