@@ -10,12 +10,10 @@
 
 
 int main() {
-    robot_init();
     if (robot_init() != ROBOT_OK) {
         std::cerr << "Error crítico: No se pudo inicializar el hardware." << std::endl;
-        return -1;
+        //return -1;
     }
-    robot_set_obstacle_handler(on_obstacle_detected);
     crow::SimpleApp app;
     AudioManager audio; 
     MappingManager mapper(20, 20);

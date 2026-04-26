@@ -133,7 +133,7 @@ function formatTime(secs) {
 async function sendAction(endpoint) {
     try {
         const serverAddr = window.location.host || 'localhost:8080';
-        //const response = await fetch(`http://127.0.0.1:8080/api/${endpoint}`);
+        const response = await fetch(`http://${serverAddr}/api/${endpoint}`);
         if (!response.ok) throw new Error('Error en la peticion');
         console.log(`Accion exitosa: ${endpoint}`);
     } catch (error) {
