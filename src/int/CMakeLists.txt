@@ -1,53 +1,35 @@
 cmake_minimum_required(VERSION 3.10)
-project(RobotAspiradora)
+project(RobotAspiradora_INT LANGUAGES C CXX) # Forzamos C y C++
 
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Incluir cabeceras para el proyecto de integración:
-include_directories(
-    include 
-    ${CMAKE_CURRENT_SOURCE_DIR}/../librobot/include
-)
-
-# Y para la librería:
-link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../librobot/build_rpi)
-set(SOURCEScmake_minimum_required(VERSION 3.10)
-project(RobotAspiradora_INT)
-
-set(CMAKE_CXX_STANDARD 17)
-
-# 1. BUSCAR DEPENDENCIAS
+# 1. BUSCAR DEPENDENCIAS (Esto requiere que en tu .bb tengas DEPENDS += "boost")
 find_package(Threads REQUIRED)
-# Buscamos Boost (necesario para Crow)
 find_package(Boost REQUIRED COMPONENTS system thread)
 
 # 2. INCLUIR CABECERAS
+# Usamos CMAKE_CURRENT_SOURCE_DIR para no perdernos
 include_directories(
     include 
     ${CMAKE_CURRENT_SOURCE_DIR}/../librobot/include
 )
 
-# 3. FUENTES
-set(SOURCES
+# 3. FUENTES (Asegúrate de que la carpeta 'app' esté dentro de 'int')
+set(INT_SOURCES
     app/main_int.cpp
     app/audio_manager.cpp
     app/mapping.cpp
 )
 
 # 4. CREAR EJECUTABLE
-add_executable(robot_int_serv ${SOURCES})
+add_executable(robot_int_serv ${INT_SOURCES})
 
-# 5. VINCULACIÓN MAESTRA (Aquí es donde se arregla el "undefined reference")
+# 5. VINCULACIÓN
 target_link_libraries(robot_int_serv 
     PRIVATE 
-    librobot          # Tu librería de hardware (OS)
-    Boost::boost      # Cabeceras de Boost
-    Boost::system     # Binarios de Boost
+    robot          # CMake buscará 'librobot.so' automáticamente
+    Boost::system
     Boost::thread
-    Threads::Threads  # Hilos
+    Threads::Threads
 )
-    app/main_int.cpp
-    app/audio_manager.cpp
-    app/mapping.cpp
-)
-

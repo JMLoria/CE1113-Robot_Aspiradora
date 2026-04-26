@@ -15,10 +15,10 @@ set(SOURCES
 )
 
 # Biblioteca dinámica
-add_library(librobot SHARED ${SOURCES})
+add_library(robot SHARED ${SOURCES})
 
 # Headers públicos
-target_include_directories(librobot PUBLIC
+target_include_directories(robot PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
@@ -29,13 +29,13 @@ pkg_check_modules(GPIOD REQUIRED libgpiod)
 pkg_check_modules(ALSA REQUIRED alsa)
 pkg_check_modules(MPG123 REQUIRED libmpg123)
 
-target_link_libraries(librobot
+target_link_libraries(robot
     ${GPIOD_LIBRARIES}
     ${ALSA_LIBRARIES}
     ${MPG123_LIBRARIES}
 )
 
-target_include_directories(librobot PRIVATE
+target_include_directories(robot PRIVATE
     ${GPIOD_INCLUDE_DIRS}
     ${ALSA_INCLUDE_DIRS}
     ${MPG123_INCLUDE_DIRS}
@@ -43,7 +43,7 @@ target_include_directories(librobot PRIVATE
 
 # Instalación
 include(GNUInstallDirs)
-install(TARGETS librobot
+install(TARGETS robot
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
 install(FILES include/librobot.h
@@ -51,4 +51,4 @@ install(FILES include/librobot.h
 )
 
 add_executable(test_hardware test_hardware.c)
-target_link_libraries(test_hardware librobot)
+target_link_libraries(test_hardware robot)
