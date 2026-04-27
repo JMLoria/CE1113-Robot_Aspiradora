@@ -138,7 +138,7 @@ int main() {
 
     // --- ENDPOINTS DE LOGIN ---
     CROW_ROUTE(app, "/login").methods(crow::HTTPMethod::POST) // Ruta de login
-    ([&auth](const crow::request& req) {
+    ([&auth, &audio](const crow::request& req) {
         auto x = crow::json::load(req.body);
         if (!x) return crow::response(400, "{\"message\":\"JSON Inválido\"}");
 
@@ -153,6 +153,9 @@ int main() {
             res["status"] = "success";
             res["token"] = new_token;
             res["message"] = "Login correcto";
+
+            audio.notifications("connect"); 
+
             return crow::response(200, res);
         } else {
             res["status"] = "error";
@@ -167,11 +170,14 @@ int main() {
 
     // --- ENDPOINTS DE LOGOUT ---
     CROW_ROUTE(app, "/logout").methods(crow::HTTPMethod::POST)
-    ([](const crow::request& req) {
+    ([&](const crow::request& req) {
         auto token = req.get_header_value("Authorization");
         if (!token.empty()) {
             active_tokens.erase(token);
         }
+
+        audio.notifications("disconnect"); 
+
         return crow::response(200, "{\"status\":\"success\"}");
     });
 
@@ -248,6 +254,8 @@ int main() {
             cur_y = 10;
             robot_angle = 0;
 
+            audio.notifications("finish"); 
+
             std::cout << "[SISTEMA] Stop: Motores detenidos y mapa limpio" << std::endl;
         }
         res.code = 200;
@@ -285,17 +293,20 @@ int main() {
     });
 
     CROW_ROUTE(app, "/api/audio/playlist")
-    ([&](const crow::request& req) {
+    ([&audio](const crow::request& req) {
+        crow::json::wvalue response_json; 
+        
         if (!is_authorized(req)) {
-            return crow::response(403, "Acceso denegado: Token inválido");
+            response_json["error"] = "Acceso denegado: Token inválido";
+            crow::response res(403, response_json);
+            res.set_header("Access-Control-Allow-Origin", "*");
+            return res;
         }
         
         std::vector<std::string> songs = audio.getPlaylist(); 
+        response_json["songs"] = songs; 
 
-        crow::json::wvalue response;
-        response = songs;
-
-        crow::response res(response);
+        crow::response res(200, response_json);
         res.set_header("Access-Control-Allow-Origin", "*");
         res.set_header("Content-Type", "application/json");
         return res;

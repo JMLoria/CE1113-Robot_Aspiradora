@@ -16,6 +16,7 @@ const authManager = {
             token: token,
             timestamp: new Date().getTime()
         }));
+
         document.getElementById('auth-overlay').style.display = 'none';
         // Disparar la conexión WebSocket una vez autenticado
         if (typeof connect === 'function') connect();
@@ -43,6 +44,11 @@ const authManager = {
                     method: 'GET',
                     headers: { 'Authorization': token}
                 });
+
+                // await fetch('/api/audio/notify/disconnect', {
+                //     method: 'GET',
+                //     headers: { 'Authorization': token}
+                // });
 
                 await fetch('/api/move/stop', {
                     method: 'GET',
@@ -97,7 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const requirements = {
                 'req-length':   pass.length >= 8,
                 'req-upper':    /[A-Z]/.test(pass),
-                'req-lower': /[a-z]/.test(pass),
+                'req-lower':    /[a-z]/.test(pass),
                 'req-number':   /\d/.test(pass),
                 'req-special':  /[@$!%*?&#./]/.test(pass)
             };

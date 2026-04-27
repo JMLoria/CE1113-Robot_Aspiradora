@@ -183,38 +183,55 @@ function togglePlaylist() {
     const menu = document.getElementById('playlist-menu');
     const listContainer = document.getElementById('songs-list');
 
+    const session = JSON.parse(sessionStorage.getItem('robot_session'));
+    const token = session ? session.token : null;
+
     if (menu.style.display === 'none' || menu.style.display === '') {
-        fetch('/api/audio/playlist')
-            .then(response => { 
-                return response.json();
-            })
-            .then(songs => {
-                if (!Array.isArray(songs)) {
-                    console.error("La respuesta no es un arreglo:", songs);
-                    return;
-                }
-                listContainer.innerHTML = ''; // Limpiar lista previa
-                songs.forEach(song => {
-                    const item = document.createElement('div');
-                    item.innerText = song;
-                    item.style.padding = "8px";
-                    item.style.cursor = "pointer";
-                    item.style.borderBottom = "1px solid #333";
-                    item.onmouseover = () => item.style.background = "#333";
-                    item.onmouseout = () => item.style.background = "transparent";
-                    item.onclick = () => {
-                        fetch(`/api/audio/play_specific?name=${encodeURIComponent(song)}`, { method: 'POST' });
-                        menu.style.display = 'none';
-                    };
-                    listContainer.appendChild(item);
-                });
-                menu.style.display = 'block';
+        fetch('/api/audio/playlist', {
+            headers: { 'Authorization': token } // Enviamos el token para evitar el 403
+        })
+        .then(response => response.json())
+        .then(data => {
+            // El servidor ahora envía { "songs": [...] }, por eso usamos data.songs
+            const songsArray = data.songs;
+
+            if (!Array.isArray(songsArray)) {
+                console.error("La respuesta no contiene un arreglo de canciones:", data);
+                return;
+            }
+
+            listContainer.innerHTML = ''; // Limpiar lista previa
+            
+            songsArray.forEach(song => {
+                const item = document.createElement('div');
+                item.innerText = song;
+                item.className = "playlist-item"; // Usamos una clase para el CSS
+                
+                // Estilos rápidos
+                item.style.padding = "8px";
+                item.style.cursor = "pointer";
+                item.style.borderBottom = "1px solid #333";
+                
+                item.onmouseover = () => item.style.background = "#333";
+                item.onmouseout = () => item.style.background = "transparent";
+                
+                item.onclick = () => {
+                    // También enviamos el token al pedir una canción específica
+                    fetch(`/api/audio/play_specific?name=${encodeURIComponent(song)}`, { 
+                        method: 'POST',
+                        headers: { 'Authorization': token }
+                    });
+                    menu.style.display = 'none';
+                };
+                listContainer.appendChild(item);
             });
+            menu.style.display = 'block';
+        })
+        .catch(err => console.error("Error al cargar la playlist:", err));
     } else {
         menu.style.display = 'none';
     }
 }
-
 function stopMusic() { 
     isPlaying = false;
     sendAction('audio/stop'); 
