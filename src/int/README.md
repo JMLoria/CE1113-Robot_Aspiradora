@@ -38,7 +38,26 @@ En una nueva terminal, ejecuta ```launch_web```. Esto abrirá automáticamente e
 ./launch_web
 ```
 
-## 4. Pruebas de Navegación y Obstáculos 
+## 4. Sistema de Autenticación (Acceso al Robot)
+
+Al abrir la interfaz web, se presentará un modal de **Control de Acceso**. Es obligatorio autenticarse para activar el canal de comunicación WebSocket y habilitar los controles manuales.
+
+### A. Registro de Nuevo Usuario:
+1. Haz clic en el enlace **"Regístrate aquí"** dentro del modal.
+2. Ingrese un nombre de usuario y una contraseña que cumpla con los requisitos de seguridad: **8+ caracteres, Mayúscula, Minúscula, Número y Símbolo (ej. . o #)**.
+3. Tras el éxito, los datos se persistirán físicamente en el servidor en la ruta: `data/r_users/users_robot.json`.
+
+### B. Credenciales de Prueba (Test Credentials):
+Para agilizar las pruebas de desarrollo, se puede utilizar el siguiente usuario pre-validado:
+* **Usuario:** `test2026`
+* **Contraseña:** `Test.2026#`
+
+### C. Inicio de Sesión y Seguridad:
+1. Introduzca sus credenciales en el formulario de login.
+2. **Protección de Fuerza Bruta**: El sistema bloqueará el acceso al usuario temporalmente tras **3 intentos fallidos**. El mensaje de error indicará el tiempo restante de bloqueo.
+3. Una vez logueado con éxito, el modal se cerrará automáticamente y el indicador de estado cambiará a **"Conectado al Robot"**, iniciando el flujo de telemetría.
+
+## 5. Pruebas de Navegación y Obstáculos 
 
 Una vez que el sistema esté corriendo y el indicador de estado en la web marque **"Conectado"**, puedes realizar pruebas de estrés de mapeo:
 

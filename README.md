@@ -63,7 +63,13 @@ Formato: `tipo(alcance): descripción`
 * `feat`: Nueva funcionalidad.
 * `fix`: Corrección de errores.
 * `docs`: Cambios en README o documentación de atributos (DI/AC).
-* `refactor`: Mejoras en código existente.
+* `refactor`: Mejoras en código existente sin cambiar comportamiento.
+* `chore`: Mantenimiento general del proyecto.
+* `test`: Creación o actualización de pruebas.
+* `ci`: Cambios en flujos de CI/CD.
+* `build`: Cambios de compilación, toolchain o sistema de build.
+* `perf`: Optimización de rendimiento.
+* `style`: Cambios de estilo/formato sin impacto funcional.
 
 ### 5.3. Pull Requests
 * Todo PR debe estar vinculado a un **Issue**.
