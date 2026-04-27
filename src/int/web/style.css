@@ -77,3 +77,42 @@
 .switch-auth a:hover {
     text-decoration: underline;
 }
+
+.invalid { color: #ff4d4d; font-size: 0.75em; }
+.valid { color: #2ecc71; font-size: 0.75em; }
+
+.requirements-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    text-align: left;
+    gap: 5px;
+    margin: 10px 0;
+    padding: 10px;
+    background: #1a1a1a;
+    border-radius: 5px;
+}
+
+.passward-container {
+    position: relative;
+    width: 100%;
+}
+
+.toggle-password {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    font-size: 1.2em;
+    user-select: none;
+}
+
+.btn-logout {
+    background: #c0392b;
+    padding: 10px 20px;
+    font-size: 0.9em;
+}
+
+.btn-logout:hover {
+    background: #e74c3c;
+}

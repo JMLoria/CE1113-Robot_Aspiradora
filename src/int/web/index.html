@@ -36,13 +36,29 @@
 
             <div id="register-form" style="display: none;">
                 <input type="text" id="reg-username" placeholder="Nuevo Usuario" autocomplete="off">
-                <input type="password" id="reg-password" placeholder="Nueva Contraseña">
+                <div class="password-container">
+                    <input type="password" id="reg-password" placeholder="Nueva Contraseña">
+                    <span class="toggle-password" onclick="togglePassword('reg-password')">👁️</span>
+                </div> 
+
+                <div id="password-requirements" class="requirements-grid">
+                    <span id="req-length" class="invalid">✖ 8+ caracteres</span>
+                    <span id="req-upper" class="invalid">✖ Mayúscula</span>
+                    <span id="req-number" class="invalid">✖ Número</span>
+                    <span id="req-special" class="invalid">✖ Símbolo</span>
+                </div>
+
                 <button onclick="handleRegister()" class="btn-success">Crear Cuenta</button>
                 <p class="switch-auth">¿Ya tienes cuenta? <a href="#" onclick="toggleAuth(false)">Inicia sesión</a></p>
             </div>
         </div>
     </div>
-    <h1>Panel de Control</h1>
+
+    <header style="width: 100%; display: flex; justify-content: space-between; align-items: center;">
+        <h1>Panel de Control</h1>
+        <button onclick="authManager.logout()" class="btn-logout">Cerrar Sesión</button>
+    </header>
+    
     <div id="status"><span class="status-dot offline"></span>Desconectado</div>
 
     <div class="container">
