@@ -41,12 +41,13 @@
                     <span class="toggle-password" onclick="togglePassword('reg-password')">👁️</span>
                 </div> 
 
-                <div id="password-requirements" class="requirements-grid">
-                    <span id="req-length" class="invalid">✖ 8+ caracteres</span>
-                    <span id="req-upper" class="invalid">✖ Mayúscula</span>
-                    <span id="req-number" class="invalid">✖ Número</span>
-                    <span id="req-special" class="invalid">✖ Símbolo</span>
-                </div>
+                <ul id="password-requirements" style="text-align: left; font-size: 0.8em; margin: 10px 0;">
+                    <li id="req-length"   class="invalid">✖ 8+ caracteres</li>
+                    <li id="req-upper"    class="invalid">✖ Mayúscula</li>
+                    <li id="req-lower"    class="invalid">✖ Minúscula</li>
+                    <li id="req-number"   class="invalid">✖ Número</li>
+                    <li id="req-special"  class="invalid">✖ Símbolo</li>
+                </ul>
 
                 <button onclick="handleRegister()" class="btn-success">Crear Cuenta</button>
                 <p class="switch-auth">¿Ya tienes cuenta? <a href="#" onclick="toggleAuth(false)">Inicia sesión</a></p>

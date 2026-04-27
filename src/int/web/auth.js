@@ -10,7 +10,7 @@ const authManager = {
     },
 
     // Gestion de sesion volatil
-    setSession: function(username) {
+    setSession: function(username, token) {
         sessionStorage.setItem('robot_session', JSON.stringify({
             user: username,
             token: token,
@@ -80,20 +80,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (regPassword) {
         regPassword.addEventListener('input', function() {
-            const val = this.value;
+            const pass = this.value;
 
-            const rules = {
-                'reg-length':   val.length >= 8,
-                'reg-upper':    /[A-Z]/.test(val),
-                'reg-number':   /\d/.test(val),
-                'reg-special':  /[@$!%*?&#./]/.test(val)
+            const requirements = {
+                'req-length':   pass.length >= 8,
+                'req-upper':    /[A-Z]/.test(pass),
+                'req-lower': /[a-z]/.test(pass),
+                'req-number':   /\d/.test(pass),
+                'req-special':  /[@$!%*?&#./]/.test(pass)
             };
 
-            for (const [id, met] of Object.entries(rules)) {
+            for (const [id, isValid] of Object.entries(requirements)) {
                 const el = document.getElementById(id);
                 if (el) {
-                    el.className = met ? 'valid' : 'invalid';
-                    el.innerText = (met ? '✔ ' : '✖ ') + el.innerText.substring(2);
+                    el.className = isValid ? 'valid' : 'invalid';
+                    el.innerText = (isValid ? '✔ ' : '✖ ') + el.innerText.substring(2);
                 }
             }
         });

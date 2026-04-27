@@ -81,17 +81,6 @@
 .invalid { color: #ff4d4d; font-size: 0.75em; }
 .valid { color: #2ecc71; font-size: 0.75em; }
 
-.requirements-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    text-align: left;
-    gap: 5px;
-    margin: 10px 0;
-    padding: 10px;
-    background: #1a1a1a;
-    border-radius: 5px;
-}
-
 .password-container {
     position: relative;
     width: 100%;
