@@ -138,13 +138,21 @@ function formatTime(secs) {
 
 // --- ACCIONES HACIA EL SEVIDOR ---
 async function sendAction(endpoint) {
+    const session = JSON.parse(sessionStorage.getItem('robot_session'));
+    const token = session ? session.token : null;
+
+    if (!token) return;
+
     try {
         // const serverAddr = window.location.host || 'localhost:8080';
-        const response = await fetch(`http://127.0.0.1:8080/api/${endpoint}`);
+        const response = await fetch(`http://127.0.0.1:8080/api/${endpoint}` , {
+            headers: { 'Authorization': token }
+        });
         if (!response.ok) throw new Error('Error en la peticion');
         console.log(`Accion exitosa: ${endpoint}`);
     } catch (error) {
         console.error('Error al enviar accion:', error);
+        if (error.message === 'No autorizado') authManager.logout();
     }
 }
 
@@ -262,6 +270,13 @@ function renderMap(grid, robot, angle) {
     ctx.restore(); // Restaura el canvas para que la matriz no se dibuje rotada
 
 }
+
+window.closeRobotConnection = () => {
+    if (socket) {
+        console.log("Cerrando conexión WebSocket por Logout...");
+        socket.close();
+    }
+};
 
 // --- LOOP DE ACTUALIZACION
 setInterval(() => {

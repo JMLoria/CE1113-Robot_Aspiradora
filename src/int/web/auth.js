@@ -30,9 +30,31 @@ const authManager = {
         return false;
     },
 
-    logout: function() {
-        sessionStorage.removeItem('robot_session');
-        location.reload(); 
+    logout: async function() {
+        // Obtener el token antes de limpiar la sesion
+        const session = JSON.parse(sessionStorage.getItem('robot_session'));
+        const token = session? session.token : null;
+
+        try {
+            // Notificar al servidor para invalidar el token
+            if (token) {
+                await fetch('/logout', {
+                    method: 'POST',
+                    headers: { 'Authorization': token}
+                });
+            }
+        } catch(err) {
+            console.error("Error al cerrar sesión en el servidor:", err)
+        } finally {
+            // Cierre esplicito del WebSocket
+            if (window.closeRobotConnection) {
+                 window.closeRobotConnection();
+            }
+
+            // Limpiar almacenamiento local y recargar
+            sessionStorage.removeItem('robot_session');
+            location.reload();
+        }
     }
 }; 
 
