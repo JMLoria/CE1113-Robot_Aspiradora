@@ -9,9 +9,9 @@ const authManager = {
         document.getElementById('auth-message').innerText = '';
     },
 
-    // Guardar sesión y ocultar modal
+    // Gestion de sesion volatil
     setSession: function(username) {
-        localStorage.setItem('robot_session', JSON.stringify({
+        sessionStorage.setItem('robot_session', JSON.stringify({
             user: username,
             timestamp: new Date().getTime()
         }));
@@ -22,7 +22,7 @@ const authManager = {
 
     // Verificar si existe una sesión válida al cargar
     checkAuth: function() {
-        const session = localStorage.getItem('robot_session');
+        const session = sessionStorage.getItem('robot_session');
         if (session) {
             document.getElementById('auth-overlay').style.display = 'none';
             return true;
@@ -31,8 +31,8 @@ const authManager = {
     },
 
     logout: function() {
-        localStorage.removeItem('robot_session');
-        location.reload(); // Recarga para bloquear todo de nuevo
+        sessionStorage.removeItem('robot_session');
+        location.reload(); 
     }
 }; 
 
@@ -43,6 +43,40 @@ function toggleAuth(isRegister) {
     authManager.toggleAuth(isRegister);
 }
 
+function togglePassword(inputId) {
+    const input = document.getElementById(inputId);
+    if (inputId.type === "password") {
+        input.type = "text";
+    } else {
+        input.type = "password";
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const regPassword = document.getElementById('reg-password');
+
+    if (regPassword) {
+        regPassword.addEventListener('input', function() {
+            const val = this.value;
+
+            const rules = {
+                'reg-length':   val.length >= 8,
+                'reg-upper':    /[A-Z]/.test(val),
+                'reg-number':   /\d/.test(val),
+                'reg-special':  /[@$!%*?&#./]/.test(val)
+            };
+
+            for (const [id, met] of Object.entries(rules)) {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.className = met ? 'valid' : 'invalid';
+                    el.innerText = (met ? '✔ ' : '✖ ') + el.innerText.substring(2);
+                }
+            }
+        });
+    }
+});
+
 // Función para el Login
 async function handleLogin() {
     const user = document.getElementById('login-username').value;
@@ -50,14 +84,13 @@ async function handleLogin() {
     const msg = document.getElementById('auth-message');
 
     try {
-        const response = await fetch('login', {
+        const response = await fetch('/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username: user, password: pass })
         });
 
         const data = await response.json();
-
         if (response.ok) {
             authManager.setSession(user);
         } else {
@@ -74,9 +107,8 @@ async function handleRegister() {
     const pass = document.getElementById('reg-password').value;
     const msg = document.getElementById('auth-message');
 
-    // Mantenemos la validación de seguridad local
+    // Validación final antes de enviar
     const passRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#./])[A-Za-z\d@$!%*?&#./]{8,}$/;
-    
     if (!passRegex.test(pass)) {
         msg.style.color = "#ff4d4d";
         msg.innerText = "La clave no cumple los requisitos de seguridad";
@@ -84,7 +116,6 @@ async function handleRegister() {
     }
 
     try {
-        // CAMBIO CRUCIAL: Ruta relativa
         const response = await fetch('/register', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -92,11 +123,10 @@ async function handleRegister() {
         });
 
         const data = await response.json();
-
         if (response.ok) {
             msg.style.color = "#2ecc71";
             msg.innerText = data.message;
-            setTimeout(() => toggleAuth(false), 1500);
+            setTimeout(() => authManager.toggleAuth(false), 1500);
         } else {
             msg.style.color = "#ff4d4d";
             msg.innerText = data.message || "Error al registrar";
@@ -107,6 +137,8 @@ async function handleRegister() {
 }
 
 // Exponer funciones al scope global explícitamente
-window.toggleAuth = toggleAuth;
+window.authManager = authManager;
+window.toggleAuth = (isReg) => authManager.toggleAuth(isReg);
+window.togglePassword = togglePassword;
 window.handleLogin = handleLogin;
 window.handleRegister = handleRegister;
