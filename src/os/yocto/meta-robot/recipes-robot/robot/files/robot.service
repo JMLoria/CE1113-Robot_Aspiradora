@@ -1,0 +1,12 @@
+[Unit]
+Description=Robot Aspiradora Server
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/robot_int_serv
+WorkingDirectory=/home/web
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
