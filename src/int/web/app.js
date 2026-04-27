@@ -35,6 +35,13 @@ function connect() {
 
     socket.onopen = () => {
         isConnected = true;
+        
+        // --- ENVIAR TOKEN PARA VALIDAR ---
+        const session = JSON.parse(sessionStorage.getItem('robot_session'));
+        if (session && session.token) {
+            socket.send(session.token); // Enviamos el token como primer mensaje
+        }
+
         statusDot.className = "status-dot online";
         statusText.innerHTML = '<span class="status-dot online"></span> Conectado al Robot';
     };

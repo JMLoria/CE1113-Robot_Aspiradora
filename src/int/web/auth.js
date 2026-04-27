@@ -13,6 +13,7 @@ const authManager = {
     setSession: function(username) {
         sessionStorage.setItem('robot_session', JSON.stringify({
             user: username,
+            token: token,
             timestamp: new Date().getTime()
         }));
         document.getElementById('auth-overlay').style.display = 'none';
@@ -67,7 +68,7 @@ function toggleAuth(isRegister) {
 
 function togglePassword(inputId) {
     const input = document.getElementById(inputId);
-    if (inputId.type === "password") {
+    if (input.type === "password") {
         input.type = "text";
     } else {
         input.type = "password";
@@ -114,7 +115,7 @@ async function handleLogin() {
 
         const data = await response.json();
         if (response.ok) {
-            authManager.setSession(user);
+            authManager.setSession(user, data.token || "token_simulado");
         } else {
             msg.innerText = data.message || "Error al iniciar sesión";
         }

@@ -464,14 +464,19 @@ int main() {
     // --- WEBSOCKET ---
     CROW_ROUTE(app, "/ws")
     .websocket()
-    .onopen([&](crow::websocket::connection& conn, const crow::request& req) {
-        if (!is_authorized(req)) {
-            return crow::response(403, "Acceso denegado: Token inválido");
-        }
-        
-        std::cout << "[WS] Cliente conectado. Sincronizando..." << std::endl;
+    .onopen([&](crow::websocket::connection& conn) {
+        std::cout << "WS: Cliente conectado y autorizado." << std::endl;
+    })
+    .onclose([&](crow::websocket::connection& conn, const std::string& reason) {
+        std::cout << "WS: Conexión cerrada: " << reason << std::endl;
     })
     .onmessage([&](crow::websocket::connection& conn, const std::string& data, bool is_binary) {
+        if (active_tokens.find(data) != active_tokens.end()) {
+            std::cout << "WS: Token validado correctamente." << std::endl;
+            // Aquí puedes marcar la conexión como "autorizada" usando userdata
+            return;
+        }
+        
         if (data == "update") {
             // Crea un objeto JSON de respuesta
             crow::json::wvalue response;
