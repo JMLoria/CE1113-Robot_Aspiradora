@@ -39,6 +39,16 @@ const authManager = {
         try {
             // Notificar al servidor para invalidar el token
             if (token) {
+                await fetch('/api/audio/stop', {
+                    method: 'GET',
+                    headers: { 'Authorization': token}
+                });
+
+                await fetch('/api/move/stop', {
+                    method: 'GET',
+                    headers: { 'Authorization': token}
+                });
+
                 await fetch('/logout', {
                     method: 'POST',
                     headers: { 'Authorization': token}
@@ -66,12 +76,14 @@ function toggleAuth(isRegister) {
     authManager.toggleAuth(isRegister);
 }
 
-function togglePassword(inputId) {
+function togglePassword(inputId, button) {
     const input = document.getElementById(inputId);
     if (input.type === "password") {
         input.type = "text";
+        button.innerText = "✘";
     } else {
         input.type = "password";
+        button.innerText = "👁️"
     }
 }
 
@@ -94,7 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const el = document.getElementById(id);
                 if (el) {
                     el.className = isValid ? 'valid' : 'invalid';
-                    el.innerText = (isValid ? '✔ ' : '✖ ') + el.innerText.substring(2);
+                    el.innerText = (isValid ? '✔ ' : '✘ ') + el.innerText.substring(2);
                 }
             }
         });

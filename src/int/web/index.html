@@ -29,7 +29,11 @@
 
             <div id="login-form">
                 <input type="text" id="login-username" placeholder="Usuario" autocomplete="off">
-                <input type="password" id="login-password" placeholder="Contraseña">
+                <div class="password-container">
+                    <input type="password" id="login-password" placeholder="Contraseña">
+                    <button type="button" class="toggle-password" onclick="togglePassword('login-password', this)">👁️</button>
+                </div> 
+
                 <button onclick="handleLogin()" class="btn-primary">Entrar</button>
                 <p class="switch-auth">¿No tienes cuenta? <a href="#" onclick="toggleAuth(true)">Regístrate aquí</a></p>
             </div>
@@ -38,15 +42,15 @@
                 <input type="text" id="reg-username" placeholder="Nuevo Usuario" autocomplete="off">
                 <div class="password-container">
                     <input type="password" id="reg-password" placeholder="Nueva Contraseña">
-                    <span class="toggle-password" onclick="togglePassword('reg-password')">👁️</span>
+                    <button type="button" class="toggle-password" onclick="togglePassword('reg-password', this)">👁️</button>
                 </div> 
 
                 <ul id="password-requirements" style="text-align: left; font-size: 0.8em; margin: 10px 0;">
-                    <li id="req-length"   class="invalid">✖ 8+ caracteres</li>
-                    <li id="req-upper"    class="invalid">✖ Mayúscula</li>
-                    <li id="req-lower"    class="invalid">✖ Minúscula</li>
-                    <li id="req-number"   class="invalid">✖ Número</li>
-                    <li id="req-special"  class="invalid">✖ Símbolo</li>
+                    <li id="req-length"   class="invalid">✘ 8+ caracteres</li>
+                    <li id="req-upper"    class="invalid">✘ Mayúscula</li>
+                    <li id="req-lower"    class="invalid">✘ Minúscula</li>
+                    <li id="req-number"   class="invalid">✘ Número</li>
+                    <li id="req-special"  class="invalid">✘ Símbolo</li>
                 </ul>
 
                 <button onclick="handleRegister()" class="btn-success">Crear Cuenta</button>

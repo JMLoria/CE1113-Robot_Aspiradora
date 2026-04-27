@@ -86,14 +86,32 @@
     width: 100%;
 }
 
+.password-container input {
+    width: 100%;
+    padding-right: 40px; /* Espacio para que el texto no choque con el ojo */
+    box-sizing: border-box;
+}
+
 .toggle-password {
     position: absolute;
-    right: 10px;
+    right: 8px;
     top: 50%;
     transform: translateY(-50%);
+    background: transparent !important; /* Quita el fondo gris */
+    border: none !important;           /* Quita el borde */
+    color: #c0392b;                   
     cursor: pointer;
+    padding: 5px !important;
+    width: auto !important;            /* Que no use el ancho de los otros botones */
+    min-width: unset !important;
     font-size: 1.2em;
-    user-select: none;
+    box-shadow: none !important;       /* Quita sombras si las hay */
+    transition: opacity 0.2s;
+}
+
+.toggle-password:hover {
+    opacity: 0.7;
+    background: transparent !important;
 }
 
 .btn-logout {
