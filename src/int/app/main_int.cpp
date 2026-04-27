@@ -175,6 +175,15 @@ int main() {
         return crow::response(200, "{\"status\":\"success\"}");
     });
 
+    CROW_ROUTE(app, "/api/<path>")
+    .methods(crow::HTTPMethod::OPTIONS)
+    ([](const crow::request& req, std::string path) {
+        crow::response res(204);
+        res.set_header("Access-Control-Allow-Origin", "*");
+        res.set_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+        res.set_header("Access-Control-Allow-Headers", "Authorization, Content-Type");
+        return res;
+    });
     // --- ENPOINTS DE ESTADO ---
     CROW_ROUTE(app, "/api/mode/<string>")
     ([&](const crow::request& req, std::string mode) {
@@ -194,8 +203,16 @@ int main() {
     // --- ENDPOINTS CONTROL REMOTO MANUAL ---  
     CROW_ROUTE(app, "/api/move/<string>") 
     ([&](const crow::request& req, std::string dir) {
+        crow::response res;
+        // Añadir cabeceras CORS
+        res.set_header("Access-Control-Allow-Origin", "*");
+        res.set_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+        res.set_header("Access-Control-Allow-Headers", "Authorization, Content-Type");
+
         if (!is_authorized(req)) {
-            return crow::response(403, "Acceso denegado: Token inválido");
+            res.code = 403;
+            res.body = "{\"status\":\"error\", \"message\":\"No autorizado\"}";
+            return res;
         }
 
         if (dir == "left") {
@@ -233,11 +250,9 @@ int main() {
 
             std::cout << "[SISTEMA] Stop: Motores detenidos y mapa limpio" << std::endl;
         }
-        crow::response res(200, "OK");
-        // Esto permite que el archivo HTML local se comunique con el servidor
-        res.set_header("Access-Control-Allow-Origin", "*"); 
+        res.code = 200;
+        res.body = "{\"status\":\"success\"}";
         return res;
-        // return crow::response(200, "OK");
     });
 
     // --- ENDPONTS MUSICA ---
