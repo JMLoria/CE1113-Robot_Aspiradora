@@ -7,30 +7,32 @@
 #include <mutex>
 #include <atomic>
 
-class AudioManager {
+class AudioManager
+{
 public:
     AudioManager();
     ~AudioManager();
 
-    // Controles de flujo
+    // Control del flujo de reproducción. `index = -1` reutiliza el estado actual.
     void play(int index = -1);
     void pause();
     void stop();
     void nextSong();
     void prevSong();
 
-    void playSpecific(const std::string& songName);
+    // Selección explícita de una pista por nombre visible en la interfaz.
+    void playSpecific(const std::string &songName);
 
-    // Controles de tiempo
+    // Desplazamiento relativo dentro de la pista en reproducción.
     void forward5s();
     void back5s();
 
-    // Controles de audio
+    // Ajustes del volumen y reproducción de señales sonoras del sistema.
     void upVolume();
     void downVolume();
-    void notifications(const std::string& alert_name);
+    void notifications(const std::string &alert_name);
 
-    // Funciones de datos
+    // Lectura del estado expuesto a la UI y al WebSocket.
     int getCurrentTime();
     int getTotalTime();
     std::string getCurrentTrackName();
@@ -53,10 +55,12 @@ private:
     std::mutex fifo_mutex;
     std::atomic<bool> running{true};
 
-
-    void sendCommand(const std::string& cmd);
+    // Escribe comandos en la FIFO controlada por mpg123.
+    void sendCommand(const std::string &cmd);
+    // Reconstruye la lista de reproducción a partir del directorio de música.
     void loadPlaylist();
-    void initProcess(); // Funcion que correra en el hilo
+    // Bucle persistente que mantiene el proceso de audio y actualiza métricas.
+    void initProcess();
 };
 
 #endif // AUDIO_MANAGER_H

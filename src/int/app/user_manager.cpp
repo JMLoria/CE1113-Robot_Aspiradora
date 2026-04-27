@@ -7,45 +7,56 @@
 #include <regex>
 #include <algorithm>
 
-UserManager::UserManager(const std::string& db_path) : db_file_path(db_path) {
+UserManager::UserManager(const std::string &db_path) : db_file_path(db_path)
+{
     loadUsers();
 }
 
-UserManager::~UserManager() {
+UserManager::~UserManager()
+{
     saveUsers();
 }
 
-bool UserManager::isValidUsername(const std::string& username) {
-    if (username.empty()) return false;
-    // Regex que busca cualquier cosa que NO sea alfanumérica
+bool UserManager::isValidUsername(const std::string &username)
+{
+    if (username.empty())
+        return false;
+    // Se restringe el identificador a caracteres alfanuméricos para evitar formatos ambiguos.
     std::regex re("^[a-zA-Z0-9]+$");
     return std::regex_match(username, re);
 }
 
-std::string UserManager::generateSalt(size_t length) {
+std::string UserManager::generateSalt(size_t length)
+{
     const std::string chars = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
     std::random_device rd;
     std::mt19937 generator(rd());
     std::uniform_int_distribution<> distribution(0, chars.size() - 1);
 
     std::string salt;
-    for (size_t i = 0; i < length; ++i) {
+    for (size_t i = 0; i < length; ++i)
+    {
         salt += chars[distribution(generator)];
     }
     return salt;
 }
 
-void UserManager::loadUsers() {
+void UserManager::loadUsers()
+{
     std::lock_guard<std::mutex> lock(user_mutex);
     std::ifstream file(db_file_path);
-    if (!file.is_open()) return;
+    if (!file.is_open())
+        return;
 
+    // El archivo se carga completo para delegar el parseo al manejador JSON de Crow.
     std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
     auto json_data = crow::json::load(content);
 
-    if (json_data && json_data.has("users")) {
+    if (json_data && json_data.has("users"))
+    {
         users.clear();
-        for (auto& item : json_data["users"]) {
+        for (auto &item : json_data["users"])
+        {
             User u;
             u.user_id_hash = item["user_id_hash"].s();
             u.password_hash = item["password_hash"].s();
@@ -58,12 +69,15 @@ void UserManager::loadUsers() {
     file.close();
 }
 
-void UserManager::saveUsers() {
+void UserManager::saveUsers()
+{
     std::lock_guard<std::mutex> lock(user_mutex);
     crow::json::wvalue json_output;
     std::vector<crow::json::wvalue> user_list;
 
-    for (const auto& u : users) {
+    // Se serializa exactamente el estado interno para mantener coherencia con el archivo JSON.
+    for (const auto &u : users)
+    {
         crow::json::wvalue user_obj;
         user_obj["user_id_hash"] = u.user_id_hash;
         user_obj["password_hash"] = u.password_hash;
@@ -79,18 +93,22 @@ void UserManager::saveUsers() {
     file.close();
 }
 
-bool UserManager::registerUser(const std::string& username, const std::string& password) {
-    if (!isValidUsername(username)) {
+bool UserManager::registerUser(const std::string &username, const std::string &password)
+{
+    if (!isValidUsername(username))
+    {
         std::cout << "[AUTH] Registro rechazado: Caracteres inválidos en '" << username << "'" << std::endl;
-        return false; 
+        return false;
     }
 
     std::string id_hash = getIdentifierHash(username);
-    if (findUserByHash(id_hash)) return false;
+    if (findUserByHash(id_hash))
+        return false;
 
     User newUser;
     newUser.user_id_hash = id_hash;
     newUser.salt = generateSalt();
+    // La contraseña nunca se guarda en claro; solo se almacena el hash derivado con sal.
     newUser.password_hash = SHA256::hash(password + newUser.salt);
     newUser.failed_attempts = 0;
     newUser.lockout_until = 0;
@@ -103,26 +121,34 @@ bool UserManager::registerUser(const std::string& username, const std::string& p
     return true;
 }
 
-bool UserManager::authenticate(const std::string& username, const std::string& password) {
+bool UserManager::authenticate(const std::string &username, const std::string &password)
+{
     std::string id_hash = getIdentifierHash(username);
-    User* u = findUserByHash(id_hash);
+    User *u = findUserByHash(id_hash);
 
-    if (!u) return false;
+    if (!u)
+        return false;
 
     // Verificar si está bloqueado
     long long now = static_cast<long long>(std::time(nullptr));
-    if (u->lockout_until > now) return false;
+    if (u->lockout_until > now)
+        return false;
 
     // Validar contraseña
+    // El hash de entrada debe coincidir con la sal persistida para aceptar la autenticación.
     std::string login_hash = SHA256::hash(password + u->salt);
-    if (u->password_hash == login_hash) {
+    if (u->password_hash == login_hash)
+    {
         u->failed_attempts = 0;
         u->lockout_until = 0;
         saveUsers();
         return true;
-    } else {
+    }
+    else
+    {
         u->failed_attempts++;
-        if (u->failed_attempts >= 3) {
+        if (u->failed_attempts >= 3)
+        {
             u->lockout_until = now + 300; // Bloqueo de 5 min
         }
         saveUsers();
@@ -130,44 +156,57 @@ bool UserManager::authenticate(const std::string& username, const std::string& p
     }
 }
 
-User* UserManager::findUserByHash(const std::string& user_hash) {
-    for (auto& u : users) {
-        if (u.user_id_hash == user_hash) return &u;
+User *UserManager::findUserByHash(const std::string &user_hash)
+{
+    // La búsqueda es lineal porque el número de usuarios esperado es pequeño.
+    for (auto &u : users)
+    {
+        if (u.user_id_hash == user_hash)
+            return &u;
     }
     return nullptr;
 }
 
-bool UserManager::isLocked(const std::string& username) {
-    User* u = findUserByHash(getIdentifierHash(username));
-    if (!u) return false;
+bool UserManager::isLocked(const std::string &username)
+{
+    User *u = findUserByHash(getIdentifierHash(username));
+    if (!u)
+        return false;
+    // Se compara el tiempo actual con el vencimiento del bloqueo persistido.
     return static_cast<long long>(std::time(nullptr)) < u->lockout_until;
 }
 
-bool UserManager::userExists(const std::string& username) {
+bool UserManager::userExists(const std::string &username)
+{
     std::string id_hash = getIdentifierHash(username);
     return findUserByHash(id_hash) != nullptr;
 }
 
-long long UserManager::getRemainingLockTime(const std::string& username) {
+long long UserManager::getRemainingLockTime(const std::string &username)
+{
     std::string id_hash = getIdentifierHash(username);
-    User* u = findUserByHash(id_hash);
-    
-    if (!u || u->lockout_until == 0) return 0;
+    User *u = findUserByHash(id_hash);
+
+    if (!u || u->lockout_until == 0)
+        return 0;
 
     long long now = static_cast<long long>(std::time(nullptr));
     long long remaining = u->lockout_until - now;
-    
+
     return (remaining > 0) ? remaining : 0;
 }
 
-void UserManager::resetAttempts(const std::string& username) {
+void UserManager::resetAttempts(const std::string &username)
+{
     std::string id_hash = getIdentifierHash(username);
-    User* u = findUserByHash(id_hash);
-    
-    if (u) {
+    User *u = findUserByHash(id_hash);
+
+    if (u)
+    {
         std::lock_guard<std::mutex> lock(user_mutex);
+        // Se limpia el estado transitorio asociado a intentos fallidos y bloqueo.
         u->failed_attempts = 0;
         u->lockout_until = 0;
-        saveUsers(); // Guardamos el cambio en el JSON
+        saveUsers(); // Persistimos el estado actualizado en el JSON.
     }
 }

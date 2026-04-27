@@ -6,28 +6,27 @@ const statusText = document.getElementById('status');
 const CELL_SIZE = 20;
 const GRID_SIZE = 20;
 
-// Estados de conexión
+// Estado de la conexión con el backend y del canal de telemetría.
 let socket;
 let isConnected = false;
 
-// Estados de reproduccion
+// Estado local del reproductor; refleja la intención del usuario, no el backend por sí solo.
 let isPlaying = false;
 
-// Lista que viene del servidor
+// Cache local de la playlist recibida desde el servidor.
 let songs = [];
 
-// Conectar al servidor al cargar la pagina
+// Se intenta reconectar solo si la sesión ya fue validada por auth.js.
 window.onload = () => {
-    // Solo intentar conectar si ya hay una sesión
     if (authManager.checkAuth()) {
         connect();
     }
 };
 
+// Abre el WebSocket y registra manejadores para mapa, audio y estado del sistema.
 function connect() {
     if (socket && socket.readyState === WebSocket.OPEN) return;
 
-    // const serverAddr = window.location.host || 'localhost:8080';
     const wsUrl = `ws://127.0.0.1:8080/ws`;
 
     console.log("Conectando WebSocket a: ", wsUrl);
@@ -36,10 +35,10 @@ function connect() {
     socket.onopen = () => {
         isConnected = true;
         
-        // --- ENVIAR TOKEN PARA VALIDAR ---
+        // El primer mensaje debe ser el token para autorizar la sesión en el servidor.
         const session = JSON.parse(sessionStorage.getItem('robot_session'));
         if (session && session.token) {
-            socket.send(session.token); // Enviamos el token como primer mensaje
+            socket.send(session.token);
         }
 
         statusDot.className = "status-dot online";
@@ -49,12 +48,12 @@ function connect() {
     socket.onmessage = (event) => {
         const data = JSON.parse(event.data);
 
-        // Renderizar Mapa
+        // El backend envía el mapa completo para evitar desincronización parcial.
         if (data.map) {
             renderMap(data.map.grid, data.map.robot, data.map.angle);
         }
 
-        // Renderizar Audio
+        // El bloque de audio se refresca junto con la telemetría recibida por WebSocket.
         if (data.audio) {
             updateAudioUI(data.audio);
         }
@@ -67,21 +66,21 @@ function connect() {
             isConnected = false;
             statusDot.className = "status-dot offline";
             statusText.innerHTML = '<span class="status-dot offline"></span> Desconectado';
-            // Reintentar conexion en 2 segundos
+            // La reconexión es diferida para evitar ciclos agresivos ante caídas transitorias.
             setTimeout(connect, 2000);
         }
 
     };
 }
 
+// Sincroniza los indicadores LED y el estado de los botones con el modo operativo recibido.
 function updateUI(status) {
-    // Actualizar LEDs visuales
     document.getElementById('led-system').className = status.system ? 'led led-blue' : 'led led-off';
     document.getElementById('led-manual').className = status.manual ? 'led led-green' : 'led led-off';
     document.getElementById('led-auto').className = status.autonomous ? 'led led-green' : 'led led-off';
     document.getElementById('led-obstacle').className = status.obstacle ? 'led led-red' : 'led led-off';
 
-    // Cambiar color de botones de modo
+    // La UI resalta el modo activo y deshabilita el control manual cuando el sistema entra en autónomo.
     const btnManual = document.getElementById('btn-manual');
     const btnAuto = document.getElementById('btn-auto');
 
@@ -96,8 +95,8 @@ function updateUI(status) {
     }
 }
 
+// Habilita o bloquea la botonera manual para evitar comandos inconsistentes con el modo activo.
 function disableManualControls(disabled) {
-    // Bloquea los botones de las flechas
     const buttons = document.querySelectorAll('.control-btn');
     buttons.forEach(btn => {
         btn.disabled = disabled;
@@ -107,7 +106,8 @@ function disableManualControls(disabled) {
     });
 }
 
-// --- LOGICA DE INTERFAZ DE AUDIO ---
+// --- LÓGICA DE INTERFAZ DE AUDIO ---
+// Actualiza el panel del reproductor con la pista, el tiempo y el volumen reportados por el backend.
 function updateAudioUI(audioData) {
     const trackInfo = document.getElementById('track-info');
     const timeCurrent = document.getElementById('time-current');
@@ -116,20 +116,20 @@ function updateAudioUI(audioData) {
     const volumeBar = document.getElementById('volume-bar');
     const volumeText = document.getElementById('volume-text');
 
-    // Actualizar nombre de la cancion
+    // La pista puede venir vacía si aún no hay reproducción activa.
     if (trackInfo) trackInfo.innerText = audioData.track || "Sin reproducción";
 
-    // Actualizar tiempos formateados
+    // El tiempo se formatea en el cliente para mantener estable el contrato del backend.
     if (timeCurrent) timeCurrent.innerText = formatTime(audioData.current);
     if (timeTotal) timeTotal.innerText = formatTime(audioData.total);
 
-    // Actualizar barra de progreso
+    // El progreso depende del tiempo total reportado por el reproductor.
     if (progressBar && audioData.total > 0) {
         const percentage = (audioData.current / audioData.total) * 100
         progressBar.style.width = `${percentage}%`;
     }
 
-    // Actualizar visualizacion de volumen
+    // El volumen se refleja como porcentaje para mantener sincronía con el backend.
     if (volumeBar && audioData.volume !== undefined) {
         volumeBar.style.width = `${audioData.volume}%`;
         if(volumeText) volumeText.innerText = `${audioData.volume}%`;
@@ -137,13 +137,15 @@ function updateAudioUI(audioData) {
     }
 }
 
+// Convierte segundos a una cadena mm:ss para la interfaz de progreso.
 function formatTime(secs) {
     const mins = Math.floor(secs / 60);
     const s = Math.floor(secs % 60);
     return `${mins}:${s < 10 ? '0' : ''}${s}`;
 }
 
-// --- ACCIONES HACIA EL SEVIDOR ---
+// --- ACCIONES HACIA EL SERVIDOR ---
+// Envía una acción autenticada al prefijo /api y deja al backend resolver la operación exacta.
 async function sendAction(endpoint) {
     const session = JSON.parse(sessionStorage.getItem('robot_session'));
     const token = session ? session.token : null;
@@ -151,7 +153,6 @@ async function sendAction(endpoint) {
     if (!token) return;
 
     try {
-        // const serverAddr = window.location.host || 'localhost:8080';
         const response = await fetch(`/api/${endpoint}` , {
             headers: { 'Authorization': token }
         });
@@ -163,11 +164,11 @@ async function sendAction(endpoint) {
     }
 }
 
-// Funciones de control vinculados a botones
+// Las acciones de movimiento y modo solo traducen eventos de UI a rutas del backend.
 function move(dir) { sendAction(`move/${dir}`); }
 function setMode(m) { sendAction(`mode/${m}`); }
 
-// Controles de musica
+// Cambia entre play y pause; el estado local solo refleja la intención del usuario.
 function togglePlay() { 
     isPlaying = !isPlaying;
     if (isPlaying) {
@@ -179,6 +180,7 @@ function togglePlay() {
     }
 }
 
+// Carga la lista de reproducción bajo sesión autenticada y la pinta en un menú dinámico.
 function togglePlaylist() {
     const menu = document.getElementById('playlist-menu');
     const listContainer = document.getElementById('songs-list');
@@ -188,11 +190,11 @@ function togglePlaylist() {
 
     if (menu.style.display === 'none' || menu.style.display === '') {
         fetch('/api/audio/playlist', {
-            headers: { 'Authorization': token } // Enviamos el token para evitar el 403
+            headers: { 'Authorization': token }
         })
         .then(response => response.json())
         .then(data => {
-            // El servidor ahora envía { "songs": [...] }, por eso usamos data.songs
+            // El backend expone la playlist como un arreglo simple de nombres de pista.
             const songsArray = data.songs;
 
             if (!Array.isArray(songsArray)) {
@@ -200,14 +202,14 @@ function togglePlaylist() {
                 return;
             }
 
-            listContainer.innerHTML = ''; // Limpiar lista previa
+            listContainer.innerHTML = '';
             
             songsArray.forEach(song => {
                 const item = document.createElement('div');
                 item.innerText = song;
-                item.className = "playlist-item"; // Usamos una clase para el CSS
+                item.className = "playlist-item";
                 
-                // Estilos rápidos
+                // El estilo inline evita depender de una clase adicional para este menú dinámico.
                 item.style.padding = "8px";
                 item.style.cursor = "pointer";
                 item.style.borderBottom = "1px solid #333";
@@ -216,7 +218,7 @@ function togglePlaylist() {
                 item.onmouseout = () => item.style.background = "transparent";
                 
                 item.onclick = () => {
-                    // También enviamos el token al pedir una canción específica
+                    // Se reutiliza el mismo token al pedir la reproducción de una pista concreta.
                     fetch(`/api/audio/play_specific?name=${encodeURIComponent(song)}`, { 
                         method: 'POST',
                         headers: { 'Authorization': token }
@@ -232,12 +234,14 @@ function togglePlaylist() {
         menu.style.display = 'none';
     }
 }
+// Detiene la reproducción sin asumir que el backend liberó la pista actual.
 function stopMusic() { 
     isPlaying = false;
     sendAction('audio/stop'); 
     document.getElementById('btn-play-pause').innerText = "⏸";
 }
 
+// Avanza o retrocede la pista actual en la playlist del backend.
 function nextSong() { 
     isPlaying = true;
     sendAction('audio/next'); 
@@ -248,22 +252,25 @@ function prevSong() {
     sendAction('audio/prev'); 
 }
 
-function skipTime(dir) { sendAction(`audio/${dir}`); } // 'forward' o 'back'
+// Salta tiempo relativo dentro de la pista actual; `dir` se espera como `forward` o `back`.
+function skipTime(dir) { sendAction(`audio/${dir}`); }
 
-function changeVolume(dir) { sendAction(`audio/volume/${dir}`); } // 'up' o 'down'
+// Ajusta el volumen por pasos discretos; `dir` se espera como `up` o `down`.
+function changeVolume(dir) { sendAction(`audio/volume/${dir}`); }
 
 // --- DIBUJO DEL MAPA ---
+// Renderiza la grilla, los obstáculos y la posición/orientación del robot sobre el canvas.
 function renderMap(grid, robot, angle) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // 1. Dibujar celdas (Visitadas y Obstaculos)
+    // El mapa se pinta celda por celda para conservar una grilla visual consistente.
     for (let y = 0; y < GRID_SIZE; y++) {
         for (let x = 0; x < GRID_SIZE; x++) {
             if (grid[y][x] === 1) {
-                ctx.fillStyle = '#777';     // VISITADA
+                ctx.fillStyle = '#777';
                 ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
             } else if (grid[y][x] == 2) {
-                ctx.fillStyle = '#ff4d4d';  // OBSTACULO
+                ctx.fillStyle = '#ff4d4d';
                 ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
             }
             ctx.strokeStyle = '#222';
@@ -271,30 +278,30 @@ function renderMap(grid, robot, angle) {
         }
     }
 
-    // Dibujar Robot
-    // Calcula el cenbtro de la celda donde esta el robot
+    // El triángulo se centra en la celda actual y rota según el ángulo reportado.
     const centerX = robot[0] * CELL_SIZE + CELL_SIZE / 2;
     const centerY = robot[1] * CELL_SIZE + CELL_SIZE / 2;
 
-    ctx.save(); // Guarda el estado actual del canvas
-    ctx.translate(centerX, centerY); // Mueve el origen al centro del robot
+    ctx.save();
+    ctx.translate(centerX, centerY);
     ctx.rotate((angle * Math.PI) / 180);
 
     ctx.fillStyle = "#00f2ff";
     ctx.beginPath();
 
-    // Dibuja el triangulo
-    ctx.moveTo(0, -CELL_SIZE / 2.5);            // La punta en (0, -altura)
-    ctx.lineTo(-CELL_SIZE / 3, CELL_SIZE / 3);  // Esquina inferior izquierda
-    ctx.lineTo(CELL_SIZE / 3, CELL_SIZE / 3);   // Espina inferior derecha
+    // La geometría apunta hacia arriba antes de aplicar la rotación del robot.
+    ctx.moveTo(0, -CELL_SIZE / 2.5);
+    ctx.lineTo(-CELL_SIZE / 3, CELL_SIZE / 3);
+    ctx.lineTo(CELL_SIZE / 3, CELL_SIZE / 3);
 
     ctx.closePath();
     ctx.fill();
 
-    ctx.restore(); // Restaura el canvas para que la matriz no se dibuje rotada
+    ctx.restore();
 
 }
 
+// Cierre explícito de la conexión de telemetría al salir de la sesión.
 window.closeRobotConnection = () => {
     if (socket) {
         console.log("Cerrando conexión WebSocket por Logout...");
@@ -302,7 +309,8 @@ window.closeRobotConnection = () => {
     }
 };
 
-// --- LOOP DE ACTUALIZACION
+// --- LOOP DE ACTUALIZACIÓN ---
+// Solicita un snapshot periódico al backend mientras el canal siga abierto.
 setInterval(() => {
     if (isConnected && socket.readyState === WebSocket.OPEN) {
         socket.send("update");

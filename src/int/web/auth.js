@@ -1,7 +1,7 @@
-// auth.js - Gestión de Autenticación para el Robot
+// auth.js - Gestión de autenticación para el panel del robot.
 
 const authManager = {
-    // Alternar entre formularios de Login y Registro
+    // Alterna entre los formularios de login y registro sin recargar la página.
     toggleAuth: function(isRegister) {
         document.getElementById('login-form').style.display = isRegister ? 'none' : 'block';
         document.getElementById('register-form').style.display = isRegister ? 'block' : 'none';
@@ -9,7 +9,7 @@ const authManager = {
         document.getElementById('auth-message').innerText = '';
     },
 
-    // Gestion de sesion volatil
+    // Persiste una sesión volátil en sessionStorage y activa la UI protegida.
     setSession: function(username, token) {
         sessionStorage.setItem('robot_session', JSON.stringify({
             user: username,
@@ -18,11 +18,11 @@ const authManager = {
         }));
 
         document.getElementById('auth-overlay').style.display = 'none';
-        // Disparar la conexión WebSocket una vez autenticado
+        // El canal WebSocket solo se abre después de autenticar correctamente al usuario.
         if (typeof connect === 'function') connect();
     },
 
-    // Verificar si existe una sesión válida al cargar
+    // Verifica si existe una sesión en memoria al cargar la interfaz.
     checkAuth: function() {
         const session = sessionStorage.getItem('robot_session');
         if (session) {
@@ -32,23 +32,17 @@ const authManager = {
         return false;
     },
 
+    // Informa al backend antes de limpiar el estado local para cerrar sesión de forma consistente.
     logout: async function() {
-        // Obtener el token antes de limpiar la sesion
         const session = JSON.parse(sessionStorage.getItem('robot_session'));
         const token = session? session.token : null;
 
         try {
-            // Notificar al servidor para invalidar el token
             if (token) {
                 await fetch('/api/audio/stop', {
                     method: 'GET',
                     headers: { 'Authorization': token}
                 });
-
-                // await fetch('/api/audio/notify/disconnect', {
-                //     method: 'GET',
-                //     headers: { 'Authorization': token}
-                // });
 
                 await fetch('/api/move/stop', {
                     method: 'GET',
@@ -63,19 +57,19 @@ const authManager = {
         } catch(err) {
             console.error("Error al cerrar sesión en el servidor:", err)
         } finally {
-            // Cierre esplicito del WebSocket
+            // El cierre explícito del WebSocket evita mensajes tardíos después del logout.
             if (window.closeRobotConnection) {
                  window.closeRobotConnection();
             }
 
-            // Limpiar almacenamiento local y recargar
+            // Se limpia la sesión del navegador y se reinicia la vista para un estado limpio.
             sessionStorage.removeItem('robot_session');
             location.reload();
         }
     }
 }; 
 
-// Hacerlo visible para el HTML
+// Se expone el gestor para que HTML y otros scripts puedan invocar sus métodos.
 window.authManager = authManager;
 
 function toggleAuth(isRegister) {
@@ -97,6 +91,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const regPassword = document.getElementById('reg-password');
 
     if (regPassword) {
+        // Valida la contraseña incrementalmente para actualizar el checklist en vivo.
         regPassword.addEventListener('input', function() {
             const pass = this.value;
 
@@ -119,7 +114,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// Función para el Login
+// Realiza login remoto y almacena la sesión si el backend devuelve un token válido.
 async function handleLogin() {
     const user = document.getElementById('login-username').value;
     const pass = document.getElementById('login-password').value;
@@ -143,13 +138,13 @@ async function handleLogin() {
     }
 }
 
-// Función para el Registro
+// Ejecuta el registro remoto tras validar localmente la política mínima de contraseña.
 async function handleRegister() {
     const user = document.getElementById('reg-username').value;
     const pass = document.getElementById('reg-password').value;
     const msg = document.getElementById('auth-message');
 
-    // Validación final antes de enviar
+    // Validación final antes de enviar para evitar round-trips innecesarios al servidor.
     const passRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#./])[A-Za-z\d@$!%*?&#./]{8,}$/;
     if (!passRegex.test(pass)) {
         msg.style.color = "#ff4d4d";
@@ -178,7 +173,7 @@ async function handleRegister() {
     }
 }
 
-// Exponer funciones al scope global explícitamente
+// Se exponen los handlers al scope global porque el HTML los invoca desde atributos onclick.
 window.authManager = authManager;
 window.toggleAuth = (isReg) => authManager.toggleAuth(isReg);
 window.togglePassword = togglePassword;

@@ -4,7 +4,8 @@
     border-radius: 50%;
     display: inline-block;
     margin-right: 10px;
-    background-color: #333; /* Apagado */
+    /* Estado base apagado; las variantes de color se activan por clase. */
+    background-color: #333;
     box-shadow: inset 0 0 5px rgba(0,0,0,0.5);
 }
 
@@ -13,7 +14,7 @@
 .led-red { background-color: #e74c3c; box-shadow: 0 0 10px #e74c3c; }
 .led-off { background-color: #444; }
 
-/* Estilos para el Modal de Autenticación */
+/* Modal de autenticación: se superpone al panel principal hasta que exista sesión. */
 .overlay {
     position: fixed;
     top: 0;
@@ -25,7 +26,7 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 9999; /* Asegura que esté por encima de todo */
+    z-index: 9999;
 }
 
 .auth-modal {
@@ -60,6 +61,7 @@
     margin-top: 15px;
 }
 
+/* Botones de acción primaria del diálogo de autenticación. */
 .btn-success { background: #2ecc71 !important; }
 .btn-primary { background: #3498db !important; }
 
@@ -81,6 +83,7 @@
 .invalid { color: #ff4d4d; font-size: 0.75em; }
 .valid { color: #2ecc71; font-size: 0.75em; }
 
+/* Agrupa el input y el botón de visibilidad para mantener alineación consistente. */
 .password-container {
     position: relative;
     width: 100%;
@@ -88,7 +91,8 @@
 
 .password-container input {
     width: 100%;
-    padding-right: 40px; /* Espacio para que el texto no choque con el ojo */
+    /* Reserva espacio para el botón de mostrar/ocultar contraseña. */
+    padding-right: 40px;
     box-sizing: border-box;
 }
 
@@ -97,15 +101,16 @@
     right: 8px;
     top: 50%;
     transform: translateY(-50%);
-    background: transparent !important; /* Quita el fondo gris */
-    border: none !important;           /* Quita el borde */
-    color: #c0392b;                   
+    /* El botón se presenta como un control discreto encima del campo. */
+    background: transparent !important;
+    border: none !important;
+    color: #c0392b;
     cursor: pointer;
     padding: 5px !important;
-    width: auto !important;            /* Que no use el ancho de los otros botones */
+    width: auto !important;
     min-width: unset !important;
     font-size: 1.2em;
-    box-shadow: none !important;       /* Quita sombras si las hay */
+    box-shadow: none !important;
     transition: opacity 0.2s;
 }
 

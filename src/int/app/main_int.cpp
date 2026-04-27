@@ -8,13 +8,13 @@
 #include <sstream>
 #include <cmath>
 #include <random>
-#include <unordered_set> // Para manejar tokens activos
+#include <unordered_set> // Tokens de sesión válidos en memoria.
 
 
-// Estructura para gestionar sesiones activas
+// Conjunto en memoria para validar accesos a los endpoints protegidos.
 std::unordered_set<std::string> active_tokens;
 
-// Funcion auxiliar para generar un token aleatorio simple
+// Genera un token efímero suficientemente impredecible para una sesión local.
 std::string generate_token() {
     static const char alphabet[]= "abcdefghijklmnopqrstuvwxyz0123456789";
     std::random_device rd;
@@ -25,7 +25,7 @@ std::string generate_token() {
     return token;
 }
 
-// Funcion auxiliar para validar tokens en los endpoints
+// Verifica que la petición porte un token previamente emitido por el login.
 bool is_authorized(const crow::request& req) {
     auto token = req.get_header_value("Authorization");
     if (token.empty()) return false;
@@ -40,17 +40,17 @@ int main() {
     AudioManager audio; 
     MappingManager mapper(20, 20);
 
-    // Estado local para el control de orientacion
+    // Estado local que el frontend consume para reflejar la orientación actual.
     int robot_angle = 0;
-    // Inicia en el centro de la grilla 
+    // El mapa lógico arranca centrado para alinearse con la vista inicial.
     int cur_x = 10;
     int cur_y = 10;
-    // Variables de estado LEDs
+    // Variables de estado que determinan la representación visual y la lógica de control.
     bool is_autonomous = false;
     bool obstacle_alert = false;
     bool system_on = true;
 
-    // Alerta de encendido al iniciar el servidor
+    // Señal sonora inicial para confirmar que el servicio quedó activo.
     audio.notifications("sys_on");
     
     // --- ARCHIVOS ESTATICOS ---
@@ -71,7 +71,7 @@ int main() {
         return crow::response(404, "index.html no encontrado");
     });
 
-    CROW_ROUTE(app, "/app.js")  // Ruta para el JS de app
+    CROW_ROUTE(app, "/app.js")  // Script principal de la interfaz web.
     ([]() {
         std::ifstream f("../web/app.js");
         if (f) {
@@ -87,7 +87,7 @@ int main() {
         return crow::response(404);
     });
 
-    CROW_ROUTE(app, "/auth.js") // Ruta para el JS de auth
+    CROW_ROUTE(app, "/auth.js") // Lógica del formulario y manejo de sesión en el navegador.
     ([]() {
         std::ifstream f("../web/auth.js");
         if (f) {
@@ -100,7 +100,7 @@ int main() {
         return crow::response(404, "auth.js no encontrado");
     });
 
-    CROW_ROUTE(app, "/style.css") // Ruta para el CSS
+    CROW_ROUTE(app, "/style.css") // Estilos de presentación para la interfaz del panel.
     ([]() {
         std::ifstream f("../web/style.css");
         if (f) {
@@ -116,6 +116,7 @@ int main() {
     });
 
     // --- ENDPOINTS DE REGISTRO ---
+    // Crea usuarios nuevos persistiendo solo el identificador hash y las credenciales derivadas.
     CROW_ROUTE(app, "/register").methods(crow::HTTPMethod::POST) // Ruta de register
     ([&auth](const crow::request& req) {
         auto x = crow::json::load(req.body);
@@ -137,6 +138,7 @@ int main() {
     });
 
     // --- ENDPOINTS DE LOGIN ---
+    // Emite un token temporal en memoria si las credenciales coinciden.
     CROW_ROUTE(app, "/login").methods(crow::HTTPMethod::POST) // Ruta de login
     ([&auth, &audio](const crow::request& req) {
         auto x = crow::json::load(req.body);
@@ -169,6 +171,7 @@ int main() {
     });
 
     // --- ENDPOINTS DE LOGOUT ---
+    // Invalida el token actual y deja la sesión del frontend sin privilegios.
     CROW_ROUTE(app, "/logout").methods(crow::HTTPMethod::POST)
     ([&](const crow::request& req) {
         auto token = req.get_header_value("Authorization");
@@ -184,6 +187,7 @@ int main() {
     CROW_ROUTE(app, "/api/<path>")
     .methods(crow::HTTPMethod::OPTIONS)
     ([](const crow::request& req, std::string path) {
+        // Respuesta CORS preflight compartida por todos los endpoints del prefijo /api.
         crow::response res(204);
         res.set_header("Access-Control-Allow-Origin", "*");
         res.set_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
@@ -191,6 +195,7 @@ int main() {
         return res;
     });
     // --- ENPOINTS DE ESTADO ---
+    // Cambia el modo operativo entre manual y autónomo desde la interfaz.
     CROW_ROUTE(app, "/api/mode/<string>")
     ([&](const crow::request& req, std::string mode) {
         if (!is_authorized(req)) {
@@ -207,6 +212,7 @@ int main() {
     });
 
     // --- ENDPOINTS CONTROL REMOTO MANUAL ---  
+    // Ajusta la orientación lógica del robot según la dirección solicitada por la UI.
     CROW_ROUTE(app, "/api/move/<string>") 
     ([&](const crow::request& req, std::string dir) {
         crow::response res;
@@ -232,7 +238,7 @@ int main() {
             int next_x = cur_x;
             int next_y = cur_y;
 
-            // Logica de movimiento segun orientacion
+            // La dirección se interpreta según la orientación actual del robot.
             if (robot_angle == 0)   next_y -= step;  // Norte
             if (robot_angle == 90)  next_x += step;  // Este
             if (robot_angle == 180) next_y += step;  // Sur
@@ -263,7 +269,8 @@ int main() {
         return res;
     });
 
-    // --- ENDPONTS MUSICA ---
+    // --- ENDPOINTS MÚSICA ---
+    // Reproduce la pista actual o una pista concreta mediante el manejador de audio.
     CROW_ROUTE(app, "/api/audio/play/current")
     ([&](const crow::request& req) {
         if (!is_authorized(req)) {
@@ -278,6 +285,7 @@ int main() {
         // return crow::response(200, "Reproduciondo cancion");
     });
 
+    // Reproducción por índice, delegando la resolución real de la pista al gestor de audio.
     CROW_ROUTE(app, "/api/audio/play/<int>")
     ([&](const crow::request& req, int track_id) {
         if (!is_authorized(req)) {
@@ -292,6 +300,7 @@ int main() {
         // return crow::response(200, "Reproduciondo cancion");
     });
 
+    // Expone la lista de reproducción para poblar la selección en el navegador.
     CROW_ROUTE(app, "/api/audio/playlist")
     ([&audio](const crow::request& req) {
         crow::json::wvalue response_json; 
@@ -312,6 +321,7 @@ int main() {
         return res;
     });
 
+    // Reproduce una pista por nombre visible en la UI, no por ruta de archivo.
     CROW_ROUTE(app, "/api/audio/play_specific")
     .methods("POST"_method)
     ([&](const crow::request& req) {
@@ -332,6 +342,7 @@ int main() {
         return error_res;
     });
 
+    // Pausa o reanuda el reproductor sin perder el punto de reproducción actual.
     CROW_ROUTE(app, "/api/audio/pause")
     ([&](const crow::request& req) {
         if (!is_authorized(req)) {
@@ -346,6 +357,7 @@ int main() {
         // return crow::response(200, "Pausa/Reanudar");
     });
 
+    // Detiene la reproducción y deja el sistema listo para iniciar otra pista.
     CROW_ROUTE(app, "/api/audio/stop")
     ([&](const crow::request& req) {
         if (!is_authorized(req)) {
@@ -360,6 +372,7 @@ int main() {
         // return crow::response(200, "Reproduccion detenida");
     });
 
+    // Avanza a la siguiente pista de la lista cargada en memoria.
     CROW_ROUTE(app, "/api/audio/next")
     ([&](const crow::request& req) {
         if (!is_authorized(req)) {
@@ -374,6 +387,7 @@ int main() {
         // return crow::response(200, "Siguiente");
     });
 
+    // Retrocede a la pista anterior usando navegación circular sobre la playlist.
     CROW_ROUTE(app, "/api/audio/prev")
     ([&](const crow::request& req) {
         if (!is_authorized(req)) {
@@ -389,6 +403,7 @@ int main() {
     });
 
     // --- ENDPOINTS CONTROL AUDIO ---
+    // Expone controles de salto temporal y volumen sin acceder directamente al reproductor.
     CROW_ROUTE(app, "/api/audio/forward")
     ([&](const crow::request& req) {
         if (!is_authorized(req)) {
@@ -403,6 +418,7 @@ int main() {
         // return crow::response(200, "+5s");
     });
 
+    // Expone controles de salto temporal y volumen sin acceder directamente al reproductor.
     CROW_ROUTE(app, "/api/audio/back")
     ([&](const crow::request& req) {
         if (!is_authorized(req)) {
@@ -417,6 +433,7 @@ int main() {
         // return crow::response(200, "-5s");
     });
 
+    // El frontend usa estos endpoints para ajustar el volumen en pasos discretos.
     CROW_ROUTE(app, "/api/audio/volume/up")
     ([&](const crow::request& req) {
         if (!is_authorized(req)) {
@@ -431,6 +448,7 @@ int main() {
         // return crow::response(200, "Volumen +");
     });
 
+    // El frontend usa estos endpoints para ajustar el volumen en pasos discretos.
     CROW_ROUTE(app, "/api/audio/volume/down")
     ([&](const crow::request& req) {
         if (!is_authorized(req)) {
@@ -446,6 +464,7 @@ int main() {
     });
 
     // --- ENDPOINTS NOTIFICACIONES (SISTEMA) ---
+    // Dispara un audio corto de alerta sin interferir con la pista principal.
     CROW_ROUTE(app, "/api/audio/notify/<string>")
     ([&](const crow::request& req, std::string alert_name) {
         if (!is_authorized(req)) {
@@ -461,6 +480,7 @@ int main() {
     });
 
     // --- ENDPOINT DE PRUEBA
+    // Genera obstáculos aleatorios para validar la representación del mapa desde la UI.
     CROW_ROUTE(app, "/api/test/obstacles")
     ([&](const crow::request& req) {
         std::cout << "[TEST] Generando obstáculos de prueba..." << std::endl;
@@ -470,7 +490,7 @@ int main() {
         std::uniform_int_distribution<> disX(0, 19);
         std::uniform_int_distribution<> disY(0, 19);
 
-        // Genera N obstaculos al azar
+        // Se agregan obstáculos aleatorios para cubrir varios casos de visualización.
         for (int i = 0; i < 35; i++) {
             int obsX = disX(gen);
             int obsY = disY(gen);
@@ -488,6 +508,7 @@ int main() {
     });
 
     // --- WEBSOCKET ---
+    // WebSocket de actualización: responde a `update` con el estado completo del sistema.
     CROW_ROUTE(app, "/ws")
     .websocket()
     .onopen([&](crow::websocket::connection& conn) {
@@ -504,28 +525,28 @@ int main() {
         }
         
         if (data == "update") {
-            // Crea un objeto JSON de respuesta
+            // El frontend espera un paquete consolidado para renderizar mapa, audio y estado.
             crow::json::wvalue response;
             
-            // 1. Datos del Mapa (Parsea el JSON que genera el mapper)
+            // Datos del mapa producidos por el gestor de navegación interna.
             auto map_data = crow::json::load(mapper.getMapAsJson());
             response["map"]["grid"] = map_data["grid"];
             response["map"]["robot"] = map_data["robot"];
             response["map"]["angle"] = robot_angle;
 
-            // 2. Datos de Audio Real (Extraídos del hilo de mpg123)
+            // Estado de audio expuesto en tiempo real desde el manejador de reproducción.
             response["audio"]["track"] = audio.getCurrentTrackName();
             response["audio"]["current"] = audio.getCurrentTime();
             response["audio"]["total"] = audio.getTotalTime();
             response["audio"]["volume"] = audio.getVolume();
 
-            // 3. Estado de LEDs y Modos
+            // Estado operativo consumido por la interfaz para iconos y paneles.
             response["status"]["autonomous"] = is_autonomous;
             response["status"]["manual"] = !is_autonomous;
             response["status"]["obstacle"] = obstacle_alert;
             response["status"]["system"] = system_on;
             
-            // Enviamos todo el paquete al navegador
+            // Se envía un único paquete para evitar desincronización entre paneles.
             conn.send_text(response.dump());
         }
     });
@@ -535,7 +556,7 @@ int main() {
     std::cout << "Abrir en navegador: http://localhost:8080" << std::endl;
     std::cout << "==========================================\n" << std::endl;
 
-    app.loglevel(crow::LogLevel::Warning); // Esto ocultará los "Request/Response" constantes y solo mostrará errores
+    app.loglevel(crow::LogLevel::Warning); // Reduce ruido de logs y deja visibles solo advertencias relevantes.
     app.port(8080).multithreaded().run();
     return 0;
 }
