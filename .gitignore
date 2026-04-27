@@ -1,59 +1,31 @@
-# Prerequisites
+# --- Compilación y Binarios ---
 *.d
-
-# Compiled Object files
 *.slo
 *.lo
 *.o
 *.obj
-
-# Precompiled Headers
 *.gch
 *.pch
-
-# Linker files
 *.ilk
-
-# Debugger Files
 *.pdb
-
-# Compiled Dynamic libraries
 *.so
 *.dylib
 *.dll
-
-# Fortran module files
 *.mod
 *.smod
-
-# Compiled Static libraries
 *.lai
 *.la
 *.a
 *.lib
-
-# Executables
 *.exe
 *.out
 *.app
-
-# debug information files
 *.dwo
+build/
+bin/
+obj/
 
-# Yocto build artifacts 
-src/os/yocto/build-rpi/tmp/
-src/os/yocto/build-rpi/cache/
-src/os/yocto/build-rpi/downloads/
-src/os/yocto/build-rpi/sstate-cache/
-src/os/yocto/build-rpi/buildhistory/
-src/os/yocto/build-rpi/pseudo/
-
-# Yocto internals 
-*.pyc
-__pycache__/
-*.lock
-
-# CMake 
+# --- CMake ---
 CMakeCache.txt
 CMakeFiles/
 CMakeScripts/
@@ -62,18 +34,26 @@ cmake_install.cmake
 Makefile
 install_manifest.txt
 
-# SDK generado 
+# --- Yocto - todos los build directories ---
+src/os/yocto/build-*/tmp/
+src/os/yocto/build-*/cache/
+src/os/yocto/build-*/downloads/
+src/os/yocto/build-*/sstate-cache/
+src/os/yocto/build-*/buildhistory/
+src/os/yocto/build-*/pseudo/
+src/os/yocto/build-*/bitbake-cookerdaemon.log
+src/os/yocto/build-*/conf/conf-notes.txt
+src/os/yocto/build-*/conf/conf-summary.txt
+src/os/yocto/build-*/conf/templateconf.cfg
+
+# --- Yocto - sstate-cache y SDK compartidos ---
+src/os/yocto/sstate-cache/
 src/os/yocto/sdk/
 
-src/os/yocto/build-rpi/bitbake-cookerdaemon.log
-src/os/yocto/build-rpi/conf/conf-notes.txt
-src/os/yocto/build-rpi/conf/conf-summary.txt
-src/os/yocto/build-rpi/conf/templateconf.cfg
-# --- Compilación y Binarios ---
-# Ignora todas las carpetas build en cualquier subdirectorio
-build/
-bin/
-obj/
+# --- Yocto - internals ---
+*.pyc
+__pycache__/
+*.lock
 
 # --- Archivos del Sistema y Editores ---
 .vscode/
