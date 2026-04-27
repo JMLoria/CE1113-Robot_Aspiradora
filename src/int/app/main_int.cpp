@@ -8,7 +8,29 @@
 #include <sstream>
 #include <cmath>
 #include <random>
+#include <unordered_set> // Para manejar tokens activos
 
+
+// Estructura para gestionar sesiones activas
+std::unordered_set<std::string> active_tokens;
+
+// Funcion auxiliar para generar un token aleatorio simple
+std::string generate_token() {
+    static const char alphabet[]= "abcdefghijklmnopqrstuvwxyz0123456789";
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dis(0, sizeof(alphabet) - 2);
+    std::string token = "tk-";
+    for (int i = 0; i < 16; ++i) token += alphabet[dis(gen)];
+    return token;
+}
+
+// Funcion auxiliar para validar tokens en los endpoints
+bool is_authorized(const crow::request& req) {
+    auto token = req.get_header_value("Authorization");
+    if (token.empty()) return false;
+    return active_tokens.find(token) != active_tokens.end();
+}
 
 int main() {
     crow::SimpleApp app;
@@ -93,19 +115,7 @@ int main() {
         return crow::response(404);
     });
 
-    // --- ENPOINTS DE ESTADO ---
-    CROW_ROUTE(app, "/api/mode/<string>")
-    ([&](const crow::request& req, std::string mode) {
-        is_autonomous = (mode == "auto"); 
-        std::cout << "[MODO] Cambiando a: " << mode << "[" << is_autonomous << "]" << std::endl;
-        crow::response res(200, "Modo actualizado");
-        // Esto permite que el archivo HTML local se comunique con el servidor
-        res.set_header("Access-Control-Allow-Origin", "*"); 
-        return res;
-        // return crow::response(200, "Modo actualizado");
-    });
-
-    // --- ENDPOINTS DE AUTENTICACION ---
+    // --- ENDPOINTS DE REGISTRO ---
     CROW_ROUTE(app, "/register").methods(crow::HTTPMethod::POST) // Ruta de register
     ([&auth](const crow::request& req) {
         auto x = crow::json::load(req.body);
@@ -126,6 +136,7 @@ int main() {
         }
     });
 
+    // --- ENDPOINTS DE LOGIN ---
     CROW_ROUTE(app, "/login").methods(crow::HTTPMethod::POST) // Ruta de login
     ([&auth](const crow::request& req) {
         auto x = crow::json::load(req.body);
@@ -136,7 +147,11 @@ int main() {
 
         crow::json::wvalue res;
         if (auth.authenticate(user, pass)) {
+            std::string new_token = generate_token();
+            active_tokens.insert(new_token);
+
             res["status"] = "success";
+            res["token"] = new_token;
             res["message"] = "Login correcto";
             return crow::response(200, res);
         } else {
@@ -150,9 +165,39 @@ int main() {
         }
     });
 
+    // --- ENDPOINTS DE LOGOUT ---
+    CROW_ROUTE(app, "/logout").methods(crow::HTTPMethod::POST)
+    ([](const crow::request& req) {
+        auto token = req.get_header_value("Authorization");
+        if (!token.empty()) {
+            active_tokens.erase(token);
+        }
+        return crow::response(200, "{\"status\":\"success\"}");
+    });
+
+    // --- ENPOINTS DE ESTADO ---
+    CROW_ROUTE(app, "/api/mode/<string>")
+    ([&](const crow::request& req, std::string mode) {
+        if (!is_authorized(req)) {
+            return crow::response(403, "Acceso denegado: Token inválido");
+        }
+        
+        is_autonomous = (mode == "auto"); 
+        std::cout << "[MODO] Cambiando a: " << mode << "[" << is_autonomous << "]" << std::endl;
+        crow::response res(200, "Modo actualizado");
+        // Esto permite que el archivo HTML local se comunique con el servidor
+        res.set_header("Access-Control-Allow-Origin", "*"); 
+        return res;
+        // return crow::response(200, "Modo actualizado");
+    });
+
     // --- ENDPOINTS CONTROL REMOTO MANUAL ---  
     CROW_ROUTE(app, "/api/move/<string>") 
     ([&](const crow::request& req, std::string dir) {
+        if (!is_authorized(req)) {
+            return crow::response(403, "Acceso denegado: Token inválido");
+        }
+
         if (dir == "left") {
             robot_angle = (robot_angle - 90 + 360) % 360;
             std::cout << "[MOTOR] Rotando Izquierda. Nuevo angulo: " << robot_angle << std::endl;
@@ -198,6 +243,10 @@ int main() {
     // --- ENDPONTS MUSICA ---
     CROW_ROUTE(app, "/api/audio/play/current")
     ([&](const crow::request& req) {
+        if (!is_authorized(req)) {
+            return crow::response(403, "Acceso denegado: Token inválido");
+        }
+
         audio.play();
         crow::response res(200, "Reproduciondo cancion");
         // Esto permite que el archivo HTML local se comunique con el servidor
@@ -208,6 +257,10 @@ int main() {
 
     CROW_ROUTE(app, "/api/audio/play/<int>")
     ([&](const crow::request& req, int track_id) {
+        if (!is_authorized(req)) {
+            return crow::response(403, "Acceso denegado: Token inválido");
+        }
+        
         audio.play(track_id);
         crow::response res(200, "Reproduciondo cancion");
         // Esto permite que el archivo HTML local se comunique con el servidor
@@ -217,7 +270,11 @@ int main() {
     });
 
     CROW_ROUTE(app, "/api/audio/playlist")
-    ([&]() {
+    ([&](const crow::request& req) {
+        if (!is_authorized(req)) {
+            return crow::response(403, "Acceso denegado: Token inválido");
+        }
+        
         std::vector<std::string> songs = audio.getPlaylist(); 
 
         crow::json::wvalue response;
@@ -232,6 +289,10 @@ int main() {
     CROW_ROUTE(app, "/api/audio/play_specific")
     .methods("POST"_method)
     ([&](const crow::request& req) {
+        if (!is_authorized(req)) {
+            return crow::response(403, "Acceso denegado: Token inválido");
+        }
+        
         auto song_name = req.url_params.get("name");
         if (song_name) {
             audio.playSpecific(song_name);
@@ -247,6 +308,10 @@ int main() {
 
     CROW_ROUTE(app, "/api/audio/pause")
     ([&](const crow::request& req) {
+        if (!is_authorized(req)) {
+            return crow::response(403, "Acceso denegado: Token inválido");
+        }
+        
         audio.pause();
         crow::response res(200, "Pausa/Reanudar");
         // Esto permite que el archivo HTML local se comunique con el servidor
@@ -257,6 +322,10 @@ int main() {
 
     CROW_ROUTE(app, "/api/audio/stop")
     ([&](const crow::request& req) {
+        if (!is_authorized(req)) {
+            return crow::response(403, "Acceso denegado: Token inválido");
+        }
+        
         audio.stop();
         crow::response res(200, "Reproduccion detenida");
         // Esto permite que el archivo HTML local se comunique con el servidor
@@ -267,6 +336,10 @@ int main() {
 
     CROW_ROUTE(app, "/api/audio/next")
     ([&](const crow::request& req) {
+        if (!is_authorized(req)) {
+            return crow::response(403, "Acceso denegado: Token inválido");
+        }
+        
         audio.nextSong();
         crow::response res(200, "Siguiente");
         // Esto permite que el archivo HTML local se comunique con el servidor
@@ -277,6 +350,10 @@ int main() {
 
     CROW_ROUTE(app, "/api/audio/prev")
     ([&](const crow::request& req) {
+        if (!is_authorized(req)) {
+            return crow::response(403, "Acceso denegado: Token inválido");
+        }
+        
         audio.prevSong();
         crow::response res(200, "Anterior");
         // Esto permite que el archivo HTML local se comunique con el servidor
@@ -288,6 +365,10 @@ int main() {
     // --- ENDPOINTS CONTROL AUDIO ---
     CROW_ROUTE(app, "/api/audio/forward")
     ([&](const crow::request& req) {
+        if (!is_authorized(req)) {
+            return crow::response(403, "Acceso denegado: Token inválido");
+        }
+        
         audio.forward5s();
         crow::response res(200, "+5s");
         // Esto permite que el archivo HTML local se comunique con el servidor
@@ -298,6 +379,10 @@ int main() {
 
     CROW_ROUTE(app, "/api/audio/back")
     ([&](const crow::request& req) {
+        if (!is_authorized(req)) {
+            return crow::response(403, "Acceso denegado: Token inválido");
+        }
+        
         audio.back5s();
         crow::response res(200, "-5s");
         // Esto permite que el archivo HTML local se comunique con el servidor
@@ -308,6 +393,10 @@ int main() {
 
     CROW_ROUTE(app, "/api/audio/volume/up")
     ([&](const crow::request& req) {
+        if (!is_authorized(req)) {
+            return crow::response(403, "Acceso denegado: Token inválido");
+        }
+        
         audio.upVolume();
         crow::response res(200, "Volumen +");
         // Esto permite que el archivo HTML local se comunique con el servidor
@@ -318,6 +407,10 @@ int main() {
 
     CROW_ROUTE(app, "/api/audio/volume/down")
     ([&](const crow::request& req) {
+        if (!is_authorized(req)) {
+            return crow::response(403, "Acceso denegado: Token inválido");
+        }
+        
         audio.downVolume();
         crow::response res(200, "Volumen -");
         // Esto permite que el archivo HTML local se comunique con el servidor
@@ -329,6 +422,10 @@ int main() {
     // --- ENDPOINTS NOTIFICACIONES (SISTEMA) ---
     CROW_ROUTE(app, "/api/audio/notify/<string>")
     ([&](const crow::request& req, std::string alert_name) {
+        if (!is_authorized(req)) {
+            return crow::response(403, "Acceso denegado: Token inválido");
+        }
+        
         audio.notifications(alert_name);
         crow::response res(200, "Notificacion enviada");
         // Esto permite que el archivo HTML local se comunique con el servidor
@@ -367,7 +464,11 @@ int main() {
     // --- WEBSOCKET ---
     CROW_ROUTE(app, "/ws")
     .websocket()
-    .onopen([&](crow::websocket::connection& conn) {
+    .onopen([&](crow::websocket::connection& conn, const crow::request& req) {
+        if (!is_authorized(req)) {
+            return crow::response(403, "Acceso denegado: Token inválido");
+        }
+        
         std::cout << "[WS] Cliente conectado. Sincronizando..." << std::endl;
     })
     .onmessage([&](crow::websocket::connection& conn, const std::string& data, bool is_binary) {
