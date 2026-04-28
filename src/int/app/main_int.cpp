@@ -2,7 +2,7 @@
 #include "../include/audio_manager.h"
 #include "../include/mapping.h"
 #include "../include/user_manager.h"
-#include "../include/biblioteca_robot.h"
+#include "librobot.h"
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -33,6 +33,10 @@ bool is_authorized(const crow::request& req) {
 }
 
 int main() {
+    if (robot_init() != ROBOT_OK) {
+        std::cerr << "Error crítico: No se pudo inicializar el hardware." << std::endl;
+        //return -1;
+    }
     crow::SimpleApp app;
 
     UserManager auth("../../../data/r_users/users_robot.json");
@@ -117,6 +121,7 @@ int main() {
 
     // --- ENDPOINTS DE REGISTRO ---
     // Crea usuarios nuevos persistiendo solo el identificador hash y las credenciales derivadas.
+    // MERGE CONFLICTS
     CROW_ROUTE(app, "/register").methods(crow::HTTPMethod::POST) // Ruta de register
     ([&auth](const crow::request& req) {
         auto x = crow::json::load(req.body);
@@ -194,33 +199,54 @@ int main() {
         res.set_header("Access-Control-Allow-Headers", "Authorization, Content-Type");
         return res;
     });
+  
     // --- ENPOINTS DE ESTADO ---
     // Cambia el modo operativo entre manual y autónomo desde la interfaz.
+    // MERGE CONFLICTS --------------------------------------------------------------------------------------------------------------
     CROW_ROUTE(app, "/api/mode/<string>")
-    ([&](const crow::request& req, std::string mode) {
-        if (!is_authorized(req)) {
-            return crow::response(403, "Acceso denegado: Token inválido");
-        }
+    ([&is_autonomous](const crow::request& req, std::string mode) {
+        crow::json::wvalue response_json;
         
-        is_autonomous = (mode == "auto"); 
-        std::cout << "[MODO] Cambiando a: " << mode << "[" << is_autonomous << "]" << std::endl;
-        crow::response res(200, "Modo actualizado");
-        // Esto permite que el archivo HTML local se comunique con el servidor
-        res.set_header("Access-Control-Allow-Origin", "*"); 
+        // 1. Verificación de Seguridad
+        if (!is_authorized(req)) {
+            response_json["error"] = "Acceso denegado: Token inválido";
+            crow::response res(403, response_json);
+            res.set_header("Access-Control-Allow-Origin", "*");
+            return res;
+        }
+
+        // 2. Lógica de Control de Modo
+        if (mode == "auto") {
+            is_autonomous = true;
+            robot_set_mode(MODE_AUTONOMOUS); // Llamada a la biblioteca física
+            response_json["message"] = "Modo cambiado a auto";
+        } else {
+            is_autonomous = false;
+            robot_set_mode(MODE_MANUAL);    // Llamada a la biblioteca física
+            response_json["message"] = "Modo cambiado a manual";
+        }
+
+        // 3. Log en consola para depuración
+        std::cout << "[MODO] Solicitud recibida: " << mode 
+                  << " | Estado interno is_autonomous: " << is_autonomous << std::endl;
+
+        // 4. Respuesta Exitosa con CORS
+        crow::response res(200, response_json);
+        res.set_header("Access-Control-Allow-Origin", "*");
+        res.set_header("Content-Type", "application/json");
         return res;
-        // return crow::response(200, "Modo actualizado");
     });
 
-    // --- ENDPOINTS CONTROL REMOTO MANUAL ---  
-    // Ajusta la orientación lógica del robot según la dirección solicitada por la UI.
+// --- ENDPOINTS CONTROL REMOTO MANUAL ---  
+    // MERGE CONFLICTS --------------------------------------------------------------------------------------------------------------
     CROW_ROUTE(app, "/api/move/<string>") 
     ([&](const crow::request& req, std::string dir) {
         crow::response res;
-        // Añadir cabeceras CORS
         res.set_header("Access-Control-Allow-Origin", "*");
         res.set_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
         res.set_header("Access-Control-Allow-Headers", "Authorization, Content-Type");
 
+        // 1. Verificación de Seguridad (Token)
         if (!is_authorized(req)) {
             res.code = 403;
             res.body = "{\"status\":\"error\", \"message\":\"No autorizado\"}";
@@ -228,42 +254,62 @@ int main() {
         }
 
         if (dir == "left") {
+            // Rotación lógica
             robot_angle = (robot_angle - 90 + 360) % 360;
-            std::cout << "[MOTOR] Rotando Izquierda. Nuevo angulo: " << robot_angle << std::endl;
+            // Rotación física
+            robot_rotate(DIR_LEFT, 90.0f); 
+            std::cout << "[MOTOR] Rotando Izquierda. Ángulo: " << robot_angle << std::endl;
+
         } else if (dir == "right") {
+            // Rotación lógica
             robot_angle = (robot_angle + 90) % 360;
-            std::cout << "[MOTOR] Rotando Derecha. Nuevo angulo: " << robot_angle << std::endl;
+            // Rotación física
+            robot_rotate(DIR_RIGHT, 90.0f); 
+            std::cout << "[MOTOR] Rotando Derecha. Ángulo: " << robot_angle << std::endl;
+
         } else if (dir == "forward" || dir == "backward") {
             int step = (dir == "forward") ? 1 : -1;
             int next_x = cur_x;
             int next_y = cur_y;
 
-            // La dirección se interpreta según la orientación actual del robot.
-            if (robot_angle == 0)   next_y -= step;  // Norte
-            if (robot_angle == 90)  next_x += step;  // Este
-            if (robot_angle == 180) next_y += step;  // Sur
-            if (robot_angle == 270) next_x -= step;  // Oeste
+            // Interpretación de dirección según orientación (Norte=0, Este=90, Sur=180, Oeste=270)
+            if (robot_angle == 0)      next_y -= step;
+            else if (robot_angle == 90)  next_x += step;
+            else if (robot_angle == 180) next_y += step;
+            else if (robot_angle == 270) next_x -= step;
 
+            // 2. Verificación de Colisión y Movimiento
             if (mapper.isTraversable(next_x, next_y)) {
                 cur_x = next_x;
                 cur_y = next_y;
-                mapper.updateRobotPosition(cur_x, cur_y);
-                std::cout << "[MOTOR] " << dir << std::endl;
-            } else {
-                std::cout << "[ALERTA] Obstáculo detectado en " << next_x << "," << next_y << ". Movimiento cancelado." << std::endl;
-                audio.notifications("obstacle");
-            }
-        } else if (dir == "stop") {
-            mapper.resetMap();
+                
+                // Movimiento físico (Solo si es seguro)
+                if (dir == "forward") robot_move(DIR_FORWARD, 80);
+                else robot_move(DIR_BACKWARD, 80);
 
+                mapper.updateRobotPosition(cur_x, cur_y);
+                std::cout << "[MOTOR] Moviendo a " << next_x << "," << next_y << std::endl;
+            } else {
+                // Bloqueo de seguridad: Detener motores si hay obstáculo en mapa
+                robot_stop(); 
+                audio.notifications("obstacle");
+                std::cout << "[ALERTA] Movimiento bloqueado por mapa en " << next_x << "," << next_y << std::endl;
+            }
+
+        } else if (dir == "stop") {
+            // Detención física
+            robot_stop();
+            
+            // Lógica de reinicio (de la rama develop)
+            mapper.resetMap();
             cur_x = 10;
             cur_y = 10;
             robot_angle = 0;
-
+            
             audio.notifications("finish"); 
-
-            std::cout << "[SISTEMA] Stop: Motores detenidos y mapa limpio" << std::endl;
+            std::cout << "[SISTEMA] Stop: Motores detenidos y mapa reiniciado." << std::endl;
         }
+
         res.code = 200;
         res.body = "{\"status\":\"success\"}";
         return res;
@@ -496,7 +542,7 @@ int main() {
             int obsY = disY(gen);
 
             if (obsX != cur_x || obsY != cur_y) {
-                mapper.addObstacle(obsX, obsY);
+                mapper.addObstacle(obsX, obsY);  //EJEMPLO--------------------------------------------------------------------------------
             }
         }
 
@@ -509,47 +555,82 @@ int main() {
 
     // --- WEBSOCKET ---
     // WebSocket de actualización: responde a `update` con el estado completo del sistema.
-    CROW_ROUTE(app, "/ws")
+    // MERGE CONFLICTS --------------------------------------------------------------------------------------------------------------
+   CROW_ROUTE(app, "/ws")
     .websocket()
     .onopen([&](crow::websocket::connection& conn) {
-        std::cout << "WS: Cliente conectado y autorizado." << std::endl;
+        std::cout << "WS: Cliente intentando conectar..." << std::endl;
     })
     .onclose([&](crow::websocket::connection& conn, const std::string& reason) {
         std::cout << "WS: Conexión cerrada: " << reason << std::endl;
     })
     .onmessage([&](crow::websocket::connection& conn, const std::string& data, bool is_binary) {
+        
+        // 1. Lógica de Validación de Token (Rama develop)
+        // El primer mensaje que envía app.js es el token
         if (active_tokens.find(data) != active_tokens.end()) {
-            std::cout << "WS: Token validado correctamente." << std::endl;
-            // Aquí puedes marcar la conexión como "autorizada" usando userdata
+            std::cout << "WS: Token validado correctamente. Conexión autorizada." << std::endl;
             return;
         }
-        
+
+        // 2. Procesamiento de solicitud de actualización
         if (data == "update") {
-            // El frontend espera un paquete consolidado para renderizar mapa, audio y estado.
             crow::json::wvalue response;
             
-            // Datos del mapa producidos por el gestor de navegación interna.
+            // --- A. Lectura de Sensores Físicos (Rama fix/robot) ---
+            robot_sensor_data_t s_data = {0};
+            if (robot_sensor_read(&s_data) == ROBOT_OK) {
+                // Si hay un objeto a menos de 20cm, activamos alerta y frenado
+                if (s_data.front_cm < 20.0f && s_data.front_cm > 0.0f) {
+                    obstacle_alert = true;
+                    robot_stop(); // Seguridad: Detener motores físicamente
+
+                    // Registrar obstáculo en el mapa según orientación actual
+                    int obs_x = cur_x, obs_y = cur_y;
+                    if (robot_angle == 0) obs_y--;
+                    else if (robot_angle == 90) obs_x++;
+                    else if (robot_angle == 180) obs_y++;
+                    else if (robot_angle == 270) obs_x--;
+                    
+                    mapper.addObstacle(obs_x, obs_y);
+                } else {
+                    obstacle_alert = false;
+                }
+                
+                // Añadir datos de sensores al JSON de respuesta
+                response["sensors"]["front"] = s_data.front_cm;
+                response["sensors"]["left"] = s_data.left_cm;
+                response["sensor"]["unit"]  = "cm";
+            }
+
+            // --- B. Datos del Mapa (Rama develop/fix) ---
             auto map_data = crow::json::load(mapper.getMapAsJson());
             response["map"]["grid"] = map_data["grid"];
             response["map"]["robot"] = map_data["robot"];
             response["map"]["angle"] = robot_angle;
 
-            // Estado de audio expuesto en tiempo real desde el manejador de reproducción.
+            // --- C. Datos de Audio (Rama develop) ---
             response["audio"]["track"] = audio.getCurrentTrackName();
             response["audio"]["current"] = audio.getCurrentTime();
             response["audio"]["total"] = audio.getTotalTime();
             response["audio"]["volume"] = audio.getVolume();
 
-            // Estado operativo consumido por la interfaz para iconos y paneles.
+            // --- D. Estado Operativo y LEDs ---
             response["status"]["autonomous"] = is_autonomous;
             response["status"]["manual"] = !is_autonomous;
             response["status"]["obstacle"] = obstacle_alert;
             response["status"]["system"] = system_on;
-            
-            // Se envía un único paquete para evitar desincronización entre paneles.
+
+            // Actualización física de LEDs en el robot
+            robot_led_set(LED_POWER, system_on ? LED_ON : LED_OFF);
+            robot_led_set(LED_AUTO, is_autonomous ? LED_ON : LED_OFF);
+            robot_led_set(LED_MANUAL, !is_autonomous ? LED_ON : LED_OFF);
+            robot_led_set(LED_OBSTACLE, obstacle_alert ? LED_ON : LED_OFF);
+
+            // Enviar paquete consolidado al frontend
             conn.send_text(response.dump());
         }
-    });
+    }); 
 
     std::cout << "\n==========================================" << std::endl;
     std::cout << "SERVIDOR INICADO" << std::endl;
@@ -558,5 +639,8 @@ int main() {
 
     app.loglevel(crow::LogLevel::Warning); // Reduce ruido de logs y deja visibles solo advertencias relevantes.
     app.port(8080).multithreaded().run();
+
+    std::cout << "Apagando hardware..." << std::endl;
+    robot_shutdown();
     return 0;
 }

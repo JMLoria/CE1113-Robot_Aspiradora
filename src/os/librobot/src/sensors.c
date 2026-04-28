@@ -4,16 +4,22 @@
 #include <stdio.h>
 #include <time.h>
 
-#define GPIO_DEVICE "/dev/gpiochip0"
+#ifndef GPIO_CHIP_NAME
+#define GPIO_CHIP_NAME "gpiochip0"
+#endif
+
+#define GPIO_DEVICE "/dev/" GPIO_CHIP_NAME
+
 #define SENSOR_FRONT_TRIG  5
 #define SENSOR_FRONT_ECHO  6
-#define SENSOR_LEFT_TRIG   19
-#define SENSOR_LEFT_ECHO   26
+#define SENSOR_LEFT_TRIG   20
+#define SENSOR_LEFT_ECHO   21
 
 static struct gpiod_chip *chip = NULL;
 static struct gpiod_line_request *sensor_request = NULL;
 
-static robot_status_t sensors_init(void) {
+// Función de inicialización de sensores
+robot_status_t sensors_init(void) {
     if (sensor_request) return ROBOT_OK;
 
     chip = gpiod_chip_open(GPIO_DEVICE);
@@ -46,37 +52,65 @@ static robot_status_t sensors_init(void) {
     return sensor_request ? ROBOT_OK : ROBOT_ERR_HW;
 }
 
+// Función auxiliar para calcular microsegundos transcurridos de forma exacta
+static double get_elapsed_us(struct timespec *start, struct timespec *end) {
+    return (end->tv_sec - start->tv_sec) * 1000000.0 + (end->tv_nsec - start->tv_nsec) / 1000.0;
+}
+
+// Nueva implementación de lectura con Timeouts estrictos
 static float measure_distance(unsigned int trig, unsigned int echo) {
-    struct timespec start, end;
-    // Pulso Trigger
+    struct timespec start, end, timeout_start, current;
+    
+    // 1. Enviar Pulso Trigger de 10us
     gpiod_line_request_set_value(sensor_request, trig, GPIOD_LINE_VALUE_ACTIVE);
     struct timespec pulse = {0, 10000};
     nanosleep(&pulse, NULL);
     gpiod_line_request_set_value(sensor_request, trig, GPIOD_LINE_VALUE_INACTIVE);
 
-    // Esperar flanco subida
-    int timeout = 30000;
-    while (gpiod_line_request_get_value(sensor_request, echo) == GPIOD_LINE_VALUE_INACTIVE && timeout--) {
-        struct timespec wait = {0, 1000};
-        nanosleep(&wait, NULL);
+    // 2. Esperar flanco de subida (Timeout de 30ms)
+    clock_gettime(CLOCK_MONOTONIC, &timeout_start);
+    while (gpiod_line_request_get_value(sensor_request, echo) == GPIOD_LINE_VALUE_INACTIVE) {
+        clock_gettime(CLOCK_MONOTONIC, &current);
+        if (get_elapsed_us(&timeout_start, &current) > 30000.0) return -1.0f; // Fuera de rango / Error hardware
     }
-    clock_gettime(CLOCK_MONOTONIC, &start);
+    clock_gettime(CLOCK_MONOTONIC, &start); // Inicia cronómetro de viaje del sonido
 
-    // Esperar flanco bajada
-    timeout = 30000;
-    while (gpiod_line_request_get_value(sensor_request, echo) == GPIOD_LINE_VALUE_ACTIVE && timeout--) {
-        struct timespec wait = {0, 1000};
-        nanosleep(&wait, NULL);
+    // 3. Esperar flanco de bajada (Timeout de 30ms)
+    while (gpiod_line_request_get_value(sensor_request, echo) == GPIOD_LINE_VALUE_ACTIVE) {
+        clock_gettime(CLOCK_MONOTONIC, &current);
+        if (get_elapsed_us(&start, &current) > 30000.0) return -1.0f; // Objeto demasiado lejos
     }
-    clock_gettime(CLOCK_MONOTONIC, &end);
+    clock_gettime(CLOCK_MONOTONIC, &end); // Termina cronómetro
 
-    double elapsed_us = (end.tv_sec - start.tv_sec) * 1e6 + (end.tv_nsec - start.tv_nsec) / 1e3;
-    return (float)(elapsed_us * 0.0343) / 2.0f;
+    // 4. Calcular distancia matemática
+    double elapsed_us = get_elapsed_us(&start, &end);
+    
+    // Formula: Distancia = (Tiempo * Velocidad) / 2
+    // Velocidad del sonido = 0.0343 cm/us
+    float distance = (float)(elapsed_us * 0.0343 / 2.0);
+    
+    return distance;
+}
+
+float robot_get_distance(int sensor_id) {
+    if (!sensor_request) return -1.0f;
+
+    // Asumimos que 0 es el Frente y 1 es la Izquierda según la declaración en robot.c
+    if (sensor_id == 0) { 
+        return measure_distance(SENSOR_FRONT_TRIG, SENSOR_FRONT_ECHO);
+    } else if (sensor_id == 1) { 
+        return measure_distance(SENSOR_LEFT_TRIG, SENSOR_LEFT_ECHO);
+    }
+    
+    return -1.0f;
 }
 
 robot_status_t robot_sensor_read(robot_sensor_data_t *data) {
-    if (sensors_init() != ROBOT_OK) return ROBOT_ERR_HW;
-    data->front_cm = measure_distance(SENSOR_FRONT_TRIG, SENSOR_FRONT_ECHO);
-    data->left_cm  = measure_distance(SENSOR_LEFT_TRIG, SENSOR_LEFT_ECHO);
+    if (!data) return ROBOT_ERR_ARG;
+
+    // Asignamos a los campos con sufijo _cm
+    data->front_cm = robot_get_distance(SENSOR_FRONT);
+    data->left_cm  = robot_get_distance(SENSOR_LEFT);
+
     return ROBOT_OK;
 }

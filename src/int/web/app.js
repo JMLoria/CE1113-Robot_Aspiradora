@@ -24,10 +24,12 @@ window.onload = () => {
 };
 
 // Abre el WebSocket y registra manejadores para mapa, audio y estado del sistema.
+// MERGE CONFLICT ------------------------------------------------------------------------------------------------------------------------------
 function connect() {
     if (socket && socket.readyState === WebSocket.OPEN) return;
-
-    const wsUrl = `ws://127.0.0.1:8080/ws`;
+  
+    const serverAddr = window.location.host || 'localhost:8080';
+    //const wsUrl = `ws://127.0.0.1:8080/ws`;
 
     console.log("Conectando WebSocket a: ", wsUrl);
     socket = new WebSocket(wsUrl);
@@ -146,6 +148,7 @@ function formatTime(secs) {
 
 // --- ACCIONES HACIA EL SERVIDOR ---
 // Envía una acción autenticada al prefijo /api y deja al backend resolver la operación exacta.
+// MERGE CONFLICT ------------------------------------------------------------------------------------------------------------------------------
 async function sendAction(endpoint) {
     const session = JSON.parse(sessionStorage.getItem('robot_session'));
     const token = session ? session.token : null;
@@ -153,7 +156,8 @@ async function sendAction(endpoint) {
     if (!token) return;
 
     try {
-        const response = await fetch(`/api/${endpoint}` , {
+        const serverAddr = window.location.host || 'localhost:8080';
+        const response = await fetch(`http://${serverAddr}/api/${endpoint}` , {
             headers: { 'Authorization': token }
         });
         if (!response.ok) throw new Error('Error en la peticion');
