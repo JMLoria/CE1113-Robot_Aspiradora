@@ -20,6 +20,7 @@ set(INT_SOURCES
     app/main_int.cpp
     app/audio_manager.cpp
     app/mapping.cpp
+    app/user_manager.cpp
 )
 
 # 4. CREAR EJECUTABLE
@@ -32,4 +33,5 @@ target_link_libraries(robot_int_serv
     Boost::system
     Boost::thread
     Threads::Threads
+    crypt
 )

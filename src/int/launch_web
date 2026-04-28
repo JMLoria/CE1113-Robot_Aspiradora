@@ -1,17 +1,13 @@
 #!/bin/bash
-
-# Limpiar la terminal
 clear
-
-# Obtiene la ruta absoluta de la carpeta donde está el script
 URL="http://localhost:8080"
 
 echo "==========================================="
-echo "🌐 LANZANDO INTERFAZ DESDE ORIGEN LOCAL"
-echo "URL: $URL"
+echo "ABRIENDO INTERFAZ WEB"
+echo "Dirección: $URL"
 echo "==========================================="
 
-# Abrir el archivo. Se usa la ruta absoluta calculada dinámicamente
+# Solo abre el navegador, Crow se encarga del resto
 if command -v xdg-open > /dev/null; then
     xdg-open "$URL"
 else
