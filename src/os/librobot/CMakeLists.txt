@@ -19,7 +19,7 @@ add_library(robot SHARED ${SOURCES})
 
 # Propagar GPIO_CHIP_NAME al compilador
 if(DEFINED GPIO_CHIP_NAME)
-    target_compile_definitions(robot PRIVATE "GPIO_CHIP_NAME=${GPIO_CHIP_NAME}")
+    target_compile_definitions(robot PRIVATE "GPIO_CHIP_NAME=\"${GPIO_CHIP_NAME}\"")
 endif()
 
 # Headers públicos

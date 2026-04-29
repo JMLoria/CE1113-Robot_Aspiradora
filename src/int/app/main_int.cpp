@@ -39,7 +39,7 @@ int main() {
     }
     crow::SimpleApp app;
 
-    UserManager auth("../../../data/r_users/users_robot.json");
+    UserManager auth("/home/data/r_users/users_robot.json");
 
     AudioManager audio; 
     MappingManager mapper(20, 20);

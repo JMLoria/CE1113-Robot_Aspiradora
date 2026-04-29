@@ -2,70 +2,82 @@ SUMMARY = "Proyecto Integrador - Robot Aspiradora"
 LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/MIT;md5=0835ade698e0bcf8506ecda2f7b4f302"
 
-# Incrementamos PR (Package Revision) cada vez que cambies el código físicamente
-# Esto obliga a Yocto a reconstruir el paquete y la imagen
-PR = "r1"
+PR = "r9"
 
 DEPENDS = "boost libgpiod alsa-lib mpg123"
 RDEPENDS:${PN} = "mpg123 alsa-utils"
 
 SRC_URI = "file://CMakeLists.txt \
            file://librobot \
-           file://int"
+           file://int \
+           file://robot.service \
+           file://asound.conf"
 
 S = "${WORKDIR}"
 
 inherit cmake pkgconfig systemd
 
-do_install() {
-    install -d ${D}${libdir}
-    install -d ${D}${bindir}
-    install -d ${D}/home/web
-    install -d ${D}/usr/share/robot/sounds
-    install -d ${D}/usr/share/robot/musics
-
-    # 1. Ruta la librería 
-    install -m 0755 ${B}/librobot/librobot.so ${D}${libdir}/
-
-    # 2. Ruta para el servidor 
-    install -m 0755 ${B}/int/robot_int_serv ${D}${bindir}/
-
-    # 3. Interfaz web 
-    install -m 0644 ${S}/int/web/index.html ${D}/home/web/
-    install -m 0644 ${S}/int/web/app.js     ${D}/home/web/
-    install -m 0644 ${S}/int/web/style.css  ${D}/home/web/
-}
-
-SRC_URI += "file://robot.service"
-
-
 SYSTEMD_SERVICE:${PN} = "robot.service"
 SYSTEMD_AUTO_ENABLE:${PN} = "enable"
 
-do_install:append() {
-    install -d ${D}${systemd_unitdir}/system
-    install -m 0644 ${WORKDIR}/robot.service ${D}${systemd_unitdir}/system/
+do_install() {
+    # 1. Directorios base
+    install -d ${D}${libdir}
+    install -d ${D}${bindir}
+    install -d ${D}${sysconfdir}
+    install -d ${D}${systemd_system_unitdir}
+
+    # 2. Binario, Librería y Config de Audio
+    install -m 0755 ${B}/int/robot_int_serv ${D}${bindir}/
+    install -m 0755 ${B}/librobot/librobot.so ${D}${libdir}/
+    install -m 0644 ${WORKDIR}/asound.conf ${D}${sysconfdir}/asound.conf
+
+    # 3. Estructura en /home (Web y Data)
+    mkdir -p ${D}/home/web
+    mkdir -p ${D}/home/data/r_users
+    mkdir -p ${D}/home/data/musica
+    mkdir -p ${D}/home/data/sonidos
+
+    # 4. Instalación de archivos Web
+    if [ -d ${S}/int/web ]; then
+        cp -r ${S}/int/web/* ${D}/home/web/
+    fi
+
+    # 5. Instalación de Datos (JSON y Música)
+    if [ -f ${S}/int/data/r_users/users_robot.json ]; then
+        cp ${S}/int/data/r_users/users_robot.json ${D}/home/data/r_users/
+    fi
+
+    if [ -d ${S}/int/data/musica ]; then
+        cp -r ${S}/int/data/musica/* ${D}/home/data/musica/ || true
+    fi
+
+    if [ -d ${S}/int/data/sonidos ]; then
+        cp -r ${S}/int/data/sonidos/* ${D}/home/data/sonidos/ || true
+    fi
+
+    # 6. Servicio
+    install -m 0644 ${WORKDIR}/robot.service ${D}${systemd_system_unitdir}/
+
+    # --- EL FIX CRÍTICO ---
+    # Forzamos que TODO en /home le pertenezca a root dentro de la imagen.
+    # Esto "limpia" el UID 1000 de tu laptop de los archivos.
+    chown -R root:root ${D}/home
+    chmod -R 755 ${D}/home
 }
 
-FILES:${PN} = " \
-    ${bindir} \
-    ${bindir}/* \
-    ${libdir} \
-    ${libdir}/* \
+# Empaquetado recursivo
+FILES:${PN} += " \
+    ${libdir}/librobot.so \
+    ${bindir}/robot_int_serv \
+    ${sysconfdir}/asound.conf \
+    ${systemd_system_unitdir}/robot.service \
     /home/web \
-    /home/web/* \
+    /home/data \
 "
-FILES:${PN} += "${systemd_unitdir}/system/robot.service"
-FILES:${PN} += "/usr/share/robot /usr/share/robot/*"
-FILES:${PN}-dev = ""
 
-# 2. Manejo de librerías .so 
 FILES_SOLIBSDEV = ""
-INSANE_SKIP:${PN}:append = " dev-so ldflags"
+INSANE_SKIP:${PN} += "dev-so ldflags"
 SECTION = "utils"
 
-# Definimos el chip por defecto (Pi 4)
-EXTRA_OECMAKE += "-DGPIO_CHIP_NAME=gpiochip0"
-
-# Si la máquina es Raspberry Pi 5, sobrescribimos la bandera
-EXTRA_OECMAKE:append:raspberrypi5 = " -DGPIO_CHIP_NAME=gpiochip4"
+# EXTRA_OECMAKE += "-DGPIO_CHIP_NAME=\"gpiochip0\""

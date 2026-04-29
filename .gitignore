@@ -45,6 +45,8 @@ src/os/yocto/build-*/bitbake-cookerdaemon.log
 src/os/yocto/build-*/conf/conf-notes.txt
 src/os/yocto/build-*/conf/conf-summary.txt
 src/os/yocto/build-*/conf/templateconf.cfg
+src/build-yocto
+src/os/yocto/meta-robot/recipes-robot/robot/files
 
 # --- Yocto - sstate-cache y SDK compartidos ---
 src/os/yocto/sstate-cache/

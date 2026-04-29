@@ -32,7 +32,7 @@ public:
     void downVolume();
     void notifications(const std::string &alert_name);
 
-    // Lectura del estado expuesto a la UI y al WebSocket.
+    // Lectura del estado expuesto a la Ustd::string data_path = "../../../data/";I y al WebSocket.
     int getCurrentTime();
     int getTotalTime();
     std::string getCurrentTrackName();
@@ -40,7 +40,7 @@ public:
     std::vector<std::string> getPlaylist() const;
 
 private:
-    std::string data_path = "../../../data/";
+    std::string data_path = "/home/data/";
     std::vector<std::string> playlist;
     int current_track_index = 0;
     std::atomic<int> volume{50};

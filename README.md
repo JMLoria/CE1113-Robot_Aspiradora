@@ -74,3 +74,37 @@ Formato: `tipo(alcance): descripción`
 ### 5.3. Pull Requests
 * Todo PR debe estar vinculado a un **Issue**.
 * Se requiere al menos **una aprobación** de un compañero para realizar el merge a `develop`.
+
+# Guía de Compilación Cruzada: Robot Aspiradora (CE1113)
+
+Este documento detalla el procedimiento para compilar el código fuente del proyecto **Robot Aspiradora** utilizando el SDK generado por Yocto Project. Este proceso genera binarios compatibles con la arquitectura de la Raspberry Pi 4/5 (Cortex-A72).
+
+##  Prerrequisitos
+
+1.  **SDK de Yocto instalado**: Asegúrate de tener el toolchain instalado en la ruta:
+    `/opt/poky/5.0.17/`
+2.  **Código fuente**: Clonar el repositorio y situarse en la carpeta del proyecto.
+
+---
+
+##  Procedimiento de Compilación
+
+Sigue estos pasos en orden para asegurar una construcción limpia y correcta.
+
+### 1. Preparar el Entorno (Environment Setup)
+Antes de compilar, es necesario exportar las variables de entorno para que el sistema utilice el compilador cruzado (`cross-compiler`) y no el compilador nativo de tu PC.
+
+Abrir una terminal y ejecutar:
+```bash
+source /opt/poky/5.0.17/environment-setup-cortexa76-poky-linux
+```
+
+Se posiciona la terminal en el folder donde esta el codigo fuente
+
+```cd ~/Embebidos/Proyecto_1/CE1113-Robot_Aspiradora/src/os/librobot/build_rpi
+```
+
+Se executa el cmake que contiene las instrucciones para la compilacion
+
+```cmake ..
+```
