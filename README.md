@@ -105,12 +105,20 @@ Solo es necesario ejectuarlo una vez, si ya se hizo anteriormente no es necesari
 Una vez que la herramienta fue construida, se debe ejecutar los siguientes comandos en la misma terminal:
 
 
-### Posicionarse en el directorio de compilación
+## Posicionarse en el directorio de compilación
 ```bash
 cd ~/Embebidos/Proyecto_1/CE1113-Robot_Aspiradora/src/os/librobot/build_rpi
 ```
 
-### Ejecutar CMake apuntando al directorio superior (donde está el CMakeLists.txt)
+## Ejecutar CMake apuntando al directorio superior (donde está el CMakeLists.txt)
 ```bash
 cmake ..
 ```
+
+### Diagramas
+
+## Diagrama de arquitectura de Software
+
+<img width="1201" height="541" alt="Diagrama SW" src="https://github.com/user-attachments/assets/93ccd196-2a1a-43fd-8316-c48aa5f72769" />
+
+
