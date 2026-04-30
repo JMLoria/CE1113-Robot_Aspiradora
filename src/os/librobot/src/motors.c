@@ -11,7 +11,7 @@
 
 #define GPIO_DEVICE "/dev/" GPIO_CHIP_NAME
 
-// Offsets de la RPi4
+// Offsets de la RPi5
 #define MOTOR_L_IN1  17
 #define MOTOR_L_IN2  27
 #define MOTOR_R_IN1  22

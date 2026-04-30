@@ -33,9 +33,12 @@ void AudioManager::initProcess()
     // Se usa una FIFO local para comunicar comandos con el modo remoto de mpg123.
     system("mkfifo /tmp/mpg123_fifo 2>/dev/null");
 
-    FILE *pipe = popen("mpg123 -R --fifo /tmp/mpg123_fifo", "r");
-    if (!pipe)
+    FILE *pipe = popen("mpg123 -a hw:0,0 -R --fifo /tmp/mpg123_fifo", "r"); 
+    
+    if (!pipe) {
+        std::cerr << "[AUDIO] Error: No se pudo iniciar mpg123" << std::endl;
         return;
+    }
 
     char buffer[256];
     while (running && fgets(buffer, sizeof(buffer), pipe))
@@ -69,7 +72,7 @@ void AudioManager::loadPlaylist()
 {
     playlist.clear();
 
-    std::string music_dir = data_path + "musics/";
+    std::string music_dir = data_path + "musica/";
 
     try
     {
@@ -127,7 +130,7 @@ void AudioManager::play(int index)
     is_paused = false;
 
     // Se resuelve el índice contra la lista local antes de enviar LOAD a mpg123.
-    std::string full_path = data_path + "musics/" + playlist[current_track_index] + ".mp3";
+    std::string full_path = data_path + "musica/" + playlist[current_track_index] + ".mp3";
     sendCommand("LOAD " + full_path);
     sendCommand("VOLUME " + std::to_string(volume));
     std::cout << "[AUDIO] Reproduciendo: " << playlist[current_track_index] << "." << std::endl;
