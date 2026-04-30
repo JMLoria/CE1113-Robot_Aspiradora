@@ -1,0 +1,130 @@
+.led {
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 10px;
+    /* Estado base apagado; las variantes de color se activan por clase. */
+    background-color: #333;
+    box-shadow: inset 0 0 5px rgba(0,0,0,0.5);
+}
+
+.led-blue { background-color: #3498db; box-shadow: 0 0 10px #3498db; }
+.led-green { background-color: #2ecc71; box-shadow: 0 0 10px #2ecc71; }
+.led-red { background-color: #e74c3c; box-shadow: 0 0 10px #e74c3c; }
+.led-off { background-color: #444; }
+
+/* Modal de autenticación: se superpone al panel principal hasta que exista sesión. */
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(8px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.auth-modal {
+    background: #2a2a2a;
+    padding: 30px;
+    border-radius: 15px;
+    width: 320px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+    text-align: center;
+    border: 1px solid #444;
+}
+
+.auth-modal h2 {
+    margin-top: 0;
+    color: #00f2ff;
+    font-size: 1.5em;
+}
+
+.auth-modal input {
+    width: 100%;
+    padding: 12px;
+    margin: 10px 0;
+    border-radius: 5px;
+    border: 1px solid #444;
+    background: #1a1a1a;
+    color: white;
+    box-sizing: border-box;
+}
+
+.auth-modal button {
+    width: 100%;
+    margin-top: 15px;
+}
+
+/* Botones de acción primaria del diálogo de autenticación. */
+.btn-success { background: #2ecc71 !important; }
+.btn-primary { background: #3498db !important; }
+
+.switch-auth {
+    margin-top: 20px;
+    font-size: 0.85em;
+    color: #888;
+}
+
+.switch-auth a {
+    color: #00f2ff;
+    text-decoration: none;
+}
+
+.switch-auth a:hover {
+    text-decoration: underline;
+}
+
+.invalid { color: #ff4d4d; font-size: 0.75em; }
+.valid { color: #2ecc71; font-size: 0.75em; }
+
+/* Agrupa el input y el botón de visibilidad para mantener alineación consistente. */
+.password-container {
+    position: relative;
+    width: 100%;
+}
+
+.password-container input {
+    width: 100%;
+    /* Reserva espacio para el botón de mostrar/ocultar contraseña. */
+    padding-right: 40px;
+    box-sizing: border-box;
+}
+
+.toggle-password {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    /* El botón se presenta como un control discreto encima del campo. */
+    background: transparent !important;
+    border: none !important;
+    color: #c0392b;
+    cursor: pointer;
+    padding: 5px !important;
+    width: auto !important;
+    min-width: unset !important;
+    font-size: 1.2em;
+    box-shadow: none !important;
+    transition: opacity 0.2s;
+}
+
+.toggle-password:hover {
+    opacity: 0.7;
+    background: transparent !important;
+}
+
+.btn-logout {
+    background: #c0392b;
+    padding: 10px 20px;
+    font-size: 0.9em;
+}
+
+.btn-logout:hover {
+    background: #e74c3c;
+}

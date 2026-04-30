@@ -1,0 +1,15 @@
+#!/bin/bash
+clear
+URL="http://localhost:8080"
+
+echo "==========================================="
+echo "ABRIENDO INTERFAZ WEB"
+echo "Dirección: $URL"
+echo "==========================================="
+
+# Solo abre el navegador, Crow se encarga del resto
+if command -v xdg-open > /dev/null; then
+    xdg-open "$URL"
+else
+    echo "Abre manualmente: $URL"
+fi
