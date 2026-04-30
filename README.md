@@ -79,32 +79,38 @@ Formato: `tipo(alcance): descripción`
 
 Este documento detalla el procedimiento para compilar el código fuente del proyecto **Robot Aspiradora** utilizando el SDK generado por Yocto Project. Este proceso genera binarios compatibles con la arquitectura de la Raspberry Pi 4/5 (Cortex-A72).
 
-##  Prerrequisitos
-
-1.  **SDK de Yocto instalado**: Asegúrate de tener el toolchain instalado en la ruta:
-    `/opt/poky/5.0.17/`
-2.  **Código fuente**: Clonar el repositorio y situarse en la carpeta del proyecto.
-
----
-
 ##  Procedimiento de Compilación
 
-Sigue estos pasos en orden para asegurar una construcción limpia y correcta.
+Sigue estos pasos en el orden indicado para asegurar una construcción limpia y correcta del proyecto.
 
 ### 1. Preparar el Entorno (Environment Setup)
-Antes de compilar, es necesario exportar las variables de entorno para que el sistema utilice el compilador cruzado (`cross-compiler`) y no el compilador nativo de tu PC.
+Antes de compilar, es necesario exportar las variables de entorno del SDK. Esto asegura que el sistema utilice el compilador cruzado (`cross-compiler`) configurado para la arquitectura destino, en lugar del compilador nativo del equipo.
 
-Abrir una terminal y ejecutar:
+Abre una terminal y ejecuta el script de entorno:
+
 ```bash
 source /opt/poky/5.0.17/environment-setup-cortexa76-poky-linux
 ```
 
-Se posiciona la terminal en el folder donde esta el codigo fuente
+Una vez que el entorno está configurado, se debe navegar al directorio destinado para la compilación (build_rpi) y ejecutar CMake. Esto leerá las instrucciones del proyecto y preparará todo para compilar sin ensuciar el código fuente original.
 
-```cd ~/Embebidos/Proyecto_1/CE1113-Robot_Aspiradora/src/os/librobot/build_rpi
+En caso de que no se haya construido la herramienta anteriormente es necesario ejecutar el comando:
+
+```bash
+bitbake -c populate_sdk core-image-minimal
 ```
 
-Se executa el cmake que contiene las instrucciones para la compilacion
+Solo es necesario ejectuarlo una vez, si ya se hizo anteriormente no es necesario volverlo a ejecutar.
 
-```cmake ..
+Una vez que la herramienta fue construida, se debe ejecutar los siguientes comandos en la misma terminal:
+
+
+### Posicionarse en el directorio de compilación
+```bash
+cd ~/Embebidos/Proyecto_1/CE1113-Robot_Aspiradora/src/os/librobot/build_rpi
+```
+
+### Ejecutar CMake apuntando al directorio superior (donde está el CMakeLists.txt)
+```bash
+cmake ..
 ```
