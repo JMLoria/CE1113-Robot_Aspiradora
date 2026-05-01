@@ -11,8 +11,6 @@
 ## 2. Descripción del Proyecto
 Desarrollo de un sistema embebido a medida para un robot aspiradora autónomo basado en la **Raspberry Pi 4**. El proyecto utiliza **Yocto Project** para crear una distribución Linux mínima y personalizada que integra navegación reactiva, reproducción de audio MP3 concurrente y una interfaz de control remoto (Web/App) con visualización de mapa 2D.
 
----
-
 ## 3. Estructura Organizativa (Roles)
 
 | Código | Rol | Responsable | Responsabilidades |
@@ -20,8 +18,8 @@ Desarrollo de un sistema embebido a medida para un robot aspiradora autónomo ba
 | **ROL-OS** | Arquitectura de Sistemas y OS | Roy Chavarria | Configuración de Yocto, recetas BitBake, biblioteca dinámica (.so) y compilación cruzada. |
 | **ROL-HW** | Hardware y Control | Jose Solano | Modelo físico, seguridad de potencia, aislamiento galvánico y algoritmos de navegación. |
 | **ROL-INT** | Interfaz y Conectividad | Jose Loria | Servidor web, reproducción de audio concurrente, mapeo 2D y autenticación. |
+| | | | |
 
----
 
 ## 4. Matriz de Requerimientos
 
@@ -47,8 +45,7 @@ Desarrollo de un sistema embebido a medida para un robot aspiradora autónomo ba
 | **RNF-02** | No Funcionales | Seguridad de Potencia | Uso de reguladores Buck-Boost y BMS para proteger la Raspberry Pi y las celdas Li-Ion. | **ROL-HW** |
 | **RNF-03** | No Funcionales | Documentación Técnica | Creación del README con diagramas de arquitectura y manual de compilación cruzada. | **ROL-OS** |
 | **RNF-04** | No Funcionales | Atributos Provisionales | Redacción de los documentos de Diseño (DI) y Aprendizaje Continuo (AC) según indicadores del TEC. | **TODOS** |
-
----
+| | | | | |
 
 ## 5. Flujo de Trabajo en Git
 
@@ -75,50 +72,80 @@ Formato: `tipo(alcance): descripción`
 * Todo PR debe estar vinculado a un **Issue**.
 * Se requiere al menos **una aprobación** de un compañero para realizar el merge a `develop`.
 
-# Guía de Compilación Cruzada: Robot Aspiradora (CE1113)
+---
 
-Este documento detalla el procedimiento para compilar el código fuente del proyecto **Robot Aspiradora** utilizando el SDK generado por Yocto Project. Este proceso genera binarios compatibles con la arquitectura de la Raspberry Pi 4/5 (Cortex-A72).
+# Guía Técnica y de Compilación
 
-##  Procedimiento de Compilación
+Este documento detalla los procedimientos de configuración, generación de imagen y compilación cruzada para el sistema operativo personalizado del Robot Aspiradora. El sistema está optimizado para arquitecturas **ARM Cortex-A72/A76** (Raspberry Pi 4/5).
 
-Sigue estos pasos en el orden indicado para asegurar una construcción limpia y correcta del proyecto.
+## 1. Generación de la Imagen con Yocto Project 
 
-### 1. Preparar el Entorno (Environment Setup)
-Antes de compilar, es necesario exportar las variables de entorno del SDK. Esto asegura que el sistema utilice el compilador cruzado (`cross-compiler`) configurado para la arquitectura destino, en lugar del compilador nativo del equipo.
+Para replicar la distribución Linux completa, siga los pasos de configuración del entorno de BitBake.
 
-Abre una terminal y ejecuta el script de entorno:
+### 1.1. Configuración de Capas
+
+Asegúrese de incluir la capa personalizada del proyecto en su entorno de construcción:
+
+``` bash
+# Clonar o copiar la capa al directorio de Yocto
+cp -r ~/CE1113-Robot_Aspiradora/yocto/meta-robot/ path/to/poky/
+
+# Agregar la capa a la configuración
+bitbake-layers add-layer path/to/poky/meta-robot/
+```
+
+### 1.2. Construcción de la Imagen y el SDK
+
+Para generar la imagen mínima y el SDK de desarrollo (necesario para la compilación cruzada):
+
+```bash
+# Construir la imagen del sistema operativo
+bitbake core-image-minimal
+
+# Generar el instalador del SDK (Solo se requiere una vez)
+bitbake -c populate_sdk core-image-minimal
+```
+
+## 2. Guía de Compilación Cruzada (Cross-Compilation)
+
+Este procedimiento permite generar los binarios de la aplicación y la biblioteca dinámica utilizando el Toolchain de Yocto.
+
+### 2.1. Preparar el Entorno (Environment Setup)
+
+Es obligatorio exportar las variables de entorno para que el sistema utilice el compilador cruzado en lugar del nativo:
 
 ```bash
 source /opt/poky/5.0.17/environment-setup-cortexa76-poky-linux
 ```
 
-Una vez que el entorno está configurado, se debe navegar al directorio destinado para la compilación (build_rpi) y ejecutar CMake. Esto leerá las instrucciones del proyecto y preparará todo para compilar sin ensuciar el código fuente original.
+### 2.2. Construcción del Proyecto con CMake
 
-En caso de que no se haya construido la herramienta anteriormente es necesario ejecutar el comando:
+Utilizamos un directorio de construcción separado para mantener limpio el árbol de fuentes:
 
 ```bash
-bitbake -c populate_sdk core-image-minimal
-```
-
-Solo es necesario ejectuarlo una vez, si ya se hizo anteriormente no es necesario volverlo a ejecutar.
-
-Una vez que la herramienta fue construida, se debe ejecutar los siguientes comandos en la misma terminal:
-
-
-## Posicionarse en el directorio de compilación
-```bash
+# Navegar al directorio de construcción de la biblioteca
 cd ~/Embebidos/Proyecto_1/CE1113-Robot_Aspiradora/src/os/librobot/build_rpi
-```
 
-## Ejecutar CMake apuntando al directorio superior (donde está el CMakeLists.txt)
-```bash
+# Generar los Makefiles con el compilador cruzado activo
 cmake ..
+
+# Compilar y generar el binario/librería
+make
 ```
 
-### Diagramas
+## 3. Documentación de la API (librobot.so)
 
-## Diagrama de arquitectura de Software
+La biblioteca dinámica encapsula el acceso al hardware. A continuación, se detallan las funciones principales disponibles:
+
+| Función | Descripción | Parámetros |
+| :--- | :--- | :--- |
+| `int init_hardware()` | Inicializa los pines GPIO y PWM. | Ninguno |
+| `void set_motor_speed(int side, int speed)` | Ajusta la velocidad del motor [0, 100]. | `side`: 0(L), 1(R); `speed`: Int. |
+| `float read_ultrasonic(int sensor_id)` | Devuelve la distancia en cm. | `sensor_id`: ID del sensor. |
+| `void play_audio(char* path)` | Reproduce un archivo MP3 concurrentemente. | `path`: Ruta al archivo. |
+
+## 4. Arquitectura del Sistema
+
+### 4.1 Diagrama de arquitectura de Software
 
 <img width="1201" height="541" alt="Diagrama SW" src="https://github.com/user-attachments/assets/93ccd196-2a1a-43fd-8316-c48aa5f72769" />
-
-
