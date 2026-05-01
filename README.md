@@ -133,19 +133,8 @@ cmake ..
 make
 ```
 
-## 3. Documentación de la API (librobot.so)
+## 3. Arquitectura del Sistema
 
-La biblioteca dinámica encapsula el acceso al hardware. A continuación, se detallan las funciones principales disponibles:
-
-| Función | Descripción | Parámetros |
-| :--- | :--- | :--- |
-| `int init_hardware()` | Inicializa los pines GPIO y PWM. | Ninguno |
-| `void set_motor_speed(int side, int speed)` | Ajusta la velocidad del motor [0, 100]. | `side`: 0(L), 1(R); `speed`: Int. |
-| `float read_ultrasonic(int sensor_id)` | Devuelve la distancia en cm. | `sensor_id`: ID del sensor. |
-| `void play_audio(char* path)` | Reproduce un archivo MP3 concurrentemente. | `path`: Ruta al archivo. |
-
-## 4. Arquitectura del Sistema
-
-### 4.1 Diagrama de arquitectura de Software
+### 3.1 Diagrama de arquitectura de Software
 
 <img width="1201" height="541" alt="Diagrama SW" src="https://github.com/user-attachments/assets/93ccd196-2a1a-43fd-8316-c48aa5f72769" />
