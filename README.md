@@ -136,9 +136,9 @@ make
 ## 3. Arquitectura del Sistema
 
 ### 3.1 Diagrama de arquitectura de Software
+<img width="1201" height="541" alt="Diagrama SW" src="https://github.com/user-attachments/assets/93ccd196-2a1a-43fd-8316-c48aa5f72769" />
 
 ### 3.2 Diagrama de arquitectura de Hardware
-<img width="2034" height="677" alt="image" src="https://github.com/user-attachments/assets/cbf3e92d-1362-4991-b843-84169b34cdf9" />
+<img width="1354" height="677" alt="image" src="https://github.com/user-attachments/assets/cbf3e92d-1362-4991-b843-84169b34cdf9" />
 
 
-<img width="1201" height="541" alt="Diagrama SW" src="https://github.com/user-attachments/assets/93ccd196-2a1a-43fd-8316-c48aa5f72769" />
